@@ -269,7 +269,7 @@ export function onReady() {
 }
 
 $(document).ready(() => {
-  if (!window.location.pathname.endsWith('musiq/')) {
+  if (!["/musiq/", "/p/"].includes(window.location.pathname)) {
     return;
   }
   onReady();
