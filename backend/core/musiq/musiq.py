@@ -15,6 +15,7 @@ from django.http import HttpResponseBadRequest
 from django.http.response import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.csrf import csrf_exempt
 
 from core import base, redis, user_manager, util
@@ -224,6 +225,35 @@ def index(request: WSGIRequest) -> HttpResponse:
         context[f"{platform}_suggestions"] = suggestion_count
     return render(request, "musiq.html", context)
 
+@user_manager.tracked
+@xframe_options_sameorigin
+def embed(request: WSGIRequest) -> HttpResponse:
+    """Renders the embedded player page for /p/."""
+    from core import urls
+
+    context = base.context(request)
+    context["urls"] = urls.musiq_paths
+    context["interactivity"] = storage.Interactivity.full_voting
+    context["controls_enabled"] = False
+    context["additional_keywords"] = storage.get("additional_keywords")
+    context["forbidden_keywords"] = storage.get("forbidden_keywords")
+    context["client_streaming"] = storage.get("output") == "client"
+    context["show_stream"] = storage.get("output") in ["client", "icecast"] and (
+        not storage.get("privileged_stream") or context["controls_enabled"]
+    )
+    for platform in ["youtube", "spotify", "soundcloud", "jamendo"]:
+        if (
+            storage.get("online_suggestions")
+            and not storage.get("new_music_only")
+            and storage.get(cast(PlatformEnabled, f"{platform}_enabled"))
+        ):
+            suggestion_count = storage.get(
+                cast(PlatformSuggestions, f"{platform}_suggestions")
+            )
+        else:
+            suggestion_count = 0
+        context[f"{platform}_suggestions"] = suggestion_count
+    return render(request, "musiq_embed.html", context)
 
 def _add_color_indication(engagement, song_dict) -> None:
     requested_by = None
