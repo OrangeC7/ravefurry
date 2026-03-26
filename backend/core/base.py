@@ -109,6 +109,10 @@ def state_dict() -> Dict[str, Any]:
     }
 
 
+def landing(request: WSGIRequest) -> HttpResponse:
+    """Renders the static page with the embedded player iframe."""
+    return render(request, "landing.html")
+
 def no_stream(request: WSGIRequest) -> HttpResponse:
     """Renders the /stream page. If this is reached, there is no stream active."""
     return render(request, "no_stream.html", context(request))
