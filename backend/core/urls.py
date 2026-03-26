@@ -25,8 +25,9 @@ from core.settings import wifi
 from core import state_handler
 
 urlpatterns: List[Union[URLPattern, URLResolver]] = [
-    path("", RedirectView.as_view(pattern_name="musiq", permanent=False), name="base"),
-    path("musiq/", musiq.index, name="musiq"),
+    path("", base.landing, name="base"),
+    path("p/", musiq.embed, name="musiq"),
+    path("musiq/", RedirectView.as_view(pattern_name="base", permanent=False)),
     path("lights/", lights.index, name="lights"),
     path("stream/", base.no_stream, name="no-stream"),
     path("network-info/", network_info.index, name="network-info"),
