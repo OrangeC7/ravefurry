@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block js %}
+    const ADDITIONAL_KEYWORDS = '{{ additional_keywords }}';
+    const FORBIDDEN_KEYWORDS = '{{ forbidden_keywords }}';
+	{% if client_streaming %}
+	const CLIENT_STREAMING = true;
+	{% else %}
+	const CLIENT_STREAMING = false;
+	{% endif %}
+	const YOUTUBE_SUGGESTIONS = {{ youtube_suggestions|default:0 }};
+	const SPOTIFY_SUGGESTIONS = {{ spotify_suggestions|default:0 }};
+	const SOUNDCLOUD_SUGGESTIONS = {{ soundcloud_suggestions|default:0 }};
+	const JAMENDO_SUGGESTIONS = {{ jamendo_suggestions|default:0 }};
+
+    urls['state'] = '{% url 'musiq-state' %}';
+	urls['musiq'] = {
+	{% for path in urls %}
+		'{{ path.name }}': '/ajax/musiq/{{ path.pattern }}',
+	{% endfor %}
+	};
+{% endblock %}
+
+{% block content %}
+<style>
+	.navbar,
+	#menu-container,
+	#hashtag-container,
+	#demo-banner,
+	#disconnected-banner,
+	#reconnected-banner,
+	#update-banner {
+		display: none !important;
+	}
+
+	#content {
+		padding-top: 0;
+	}
+</style>
+
+<ul class="list-group">
+	<li class="list-group-item" id="music-input-card">
+		<span class="clearable">
+			<input class="form-control autocomplete" id="music-input" placeholder="Search for Music..." autofocus autocomplete="off">
+			<i class="fas fa-times" id="clearbutton"></i>
+		</span>
+		<div class="anim-container" id="request-button-container">
+			<i class="fas fa-arrow-circle-right other" id="request-archived-music"></i>
+			<i class="fas fa-search default" id="request-new-music"></i>
+		</div>
+	</li>
+</ul>
+<ul class="list-group" id="current-song-card">
+	<li class="list-group-item empty" id="current-song">
+		{% if show_stream %}
+			<audio>
+			</audio>
+			<i class="fas fa-volume-mute" id="stream-control"></i>
+		{% endif %}
+		<div class="autoscrolling-container" {%if show_stream%}style="margin-right:32px"{%endif%}><span id="current-song-title">Currently Empty</span></div>
+	</li>
+	<li class="list-group-item" id="progress-bar-container">
+		<div class="progress">
+			<div id="progress-bar" class="progress-bar">
+			</div>
+		</div>
+	</li>
+	<li class="list-group-item" id="song-votes">
+		<div class="current-song-vote-indicators" id="current-song-upvote-indicators"></div>
+		<i class="fas fa-chevron-circle-up vote-up"></i>
+		<span id="current-song-votes"></span>
+		<i class="fas fa-chevron-circle-down vote-down"></i>
+		<div class="current-song-vote-indicators" id="current-song-downvote-indicators"></div>
+	</li>
+</ul>
+<ul class="list-group" id="song-queue">
+</ul>
+
+<div id="title-modal" class="modal fade" role="dialog">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-text">
+				Some text in the modal.
+			</div>
+			<a target="_blank" rel="noopener" href="" id="external-link">
+				<i class="fas fa-link"></i>
+			</a>
+		</div>
+	</div>
+</div>
+
+{% endblock %}
