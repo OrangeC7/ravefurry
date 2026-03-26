@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Raveberry</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f1117;
+        --bg-soft: #171a23;
+        --text: #e8ecf7;
+        --card-shadow: 0 16px 50px rgba(0, 0, 0, 0.45);
+        --radius: 18px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: clamp(16px, 2.8vw, 36px);
+        background: radial-gradient(circle at top, #1a1f2d 0%, var(--bg) 58%);
+        color: var(--text);
+        font-family: Inter, Roboto, "Segoe UI", system-ui, -apple-system, sans-serif;
+        opacity: 0;
+        transform: scale(0.985);
+      }
+
+      body.loaded {
+        animation: page-enter 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+
+      .player-card {
+        width: min(100%, 1100px);
+        height: min(100vh - 2 * clamp(16px, 2.8vw, 36px), 760px);
+        border-radius: var(--radius);
+        overflow: hidden;
+        background: linear-gradient(180deg, #202534 0%, var(--bg-soft) 100%);
+        box-shadow: var(--card-shadow);
+        opacity: 0;
+      }
+
+      .player-card.loaded {
+        animation: card-enter 520ms ease-out 120ms forwards;
+      }
+
+      iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: transparent;
+      }
+
+      @keyframes page-enter {
+        from {
+          opacity: 0;
+          transform: scale(0.985);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      @keyframes card-enter {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="player-card" id="player-card">
+      <iframe src="/p/" title="Raveberry player"></iframe>
+    </div>
+
+    <script>
+      window.addEventListener('load', function() {
+        document.body.classList.add('loaded');
+        document.getElementById('player-card').classList.add('loaded');
+      });
+    </script>
+  </body>
+</html>
