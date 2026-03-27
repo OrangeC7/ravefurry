@@ -36,8 +36,9 @@
       }
 
       .player-card {
-        width: min(100%, 1100px);
-        height: min(100vh - 2 * clamp(16px, 2.8vw, 36px), 760px);
+        width: min(92vw, 430px);
+        aspect-ratio: 9 / 16;
+        height: auto;
         border-radius: var(--radius);
         overflow: hidden;
         background: linear-gradient(180deg, #202534 0%, var(--bg-soft) 100%);
@@ -46,7 +47,7 @@
       }
 
       .player-card.loaded {
-        animation: card-enter 520ms ease-out 120ms forwards;
+        animation: card-enter 420ms ease-out 60ms forwards;
       }
 
       iframe {
