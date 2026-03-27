@@ -203,6 +203,7 @@ def index(request: WSGIRequest) -> HttpResponse:
     """Renders the /musiq page."""
     from core import urls
 
+    request.session["secret_controls"] = True
     context = base.context(request)
     context["urls"] = urls.musiq_paths
     context["additional_keywords"] = storage.get("additional_keywords")
