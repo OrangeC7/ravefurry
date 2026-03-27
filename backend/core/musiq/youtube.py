@@ -165,14 +165,34 @@ class YoutubeSongProvider(SongProvider, Youtube):
             extract_info(self.id)
         else:
             # do not filter to only receive "song" results, because we would skip the top result
-            results = ytmusicapi.YTMusic().search(self.query)
-            for result in results:
-                if result["resultType"] not in ("video", "song"):
-                    continue
-                if song_utils.is_forbidden(result["title"]):
-                    continue
-                if extract_info(result["videoId"]):
-                    break
+            try:
+                results = ytmusicapi.YTMusic().search(self.query)
+            except Exception as error:
+                logging.warning("ytmusic search failed for %r: %s", self.query, error)
+                try:
+                    with yt_dlp.YoutubeDL(Youtube.get_ydl_opts()) as ydl:
+                        search_result = ydl.extract_info(
+                            f"ytsearch1:{self.query}",
+                            download=False,
+                        ) or {}
+                    entries = search_result.get("entries") or []
+                    if entries:
+                        self.info_dict = entries[0]
+                except (yt_dlp.utils.ExtractorError, yt_dlp.utils.DownloadError) as fallback_error:
+                    logging.warning(
+                        "yt-dlp fallback search failed for %r: %s",
+                        self.query,
+                        fallback_error,
+                    )
+                    self.info_dict = {}
+            else:
+                for result in results:
+                    if result["resultType"] not in ("video", "song"):
+                        continue
+                    if song_utils.is_forbidden(result["title"]):
+                        continue
+                    if extract_info(result["videoId"]):
+                        break
 
         if not self.info_dict:
             self.error = "No songs found"
