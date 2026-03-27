@@ -1,9 +1,10 @@
+const path = require('path');
 const glob = require('glob');
 const TerserPlugin = require('terser-webpack-plugin');
 const webpack = require('webpack');
 
 module.exports = {
-  entry: glob.sync('./js/**/*.js'),
+  entry: glob.sync('./js/**/*.js').map((file) => path.resolve(__dirname, file)),
   devtool: false,
   plugins: [
     new webpack.ProvidePlugin({
