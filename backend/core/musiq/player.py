@@ -58,9 +58,11 @@ def _active_player():
         from core.musiq import spotify_player
 
         return spotify_player
+    elif active_player == "windows":
+        from core.musiq import windows_player
+        return windows_player
     elif active_player == "fake":
         from core.musiq import fake_player
-
         return fake_player
 
 
