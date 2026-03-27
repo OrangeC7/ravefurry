@@ -1,6 +1,4 @@
-from pathlib import Path
-
-content = r'''@echo off
+@echo off
 setlocal EnableExtensions
 
 set "RAVEBERRY_ENV=Raveberry"
@@ -49,6 +47,36 @@ if not exist "%RAVEBERRY_SCRIPT%" (
     exit /b 1
 )
 
+set "RB_QUEUE_COUNT=0"
+set "RB_CURRENT_COUNT=0"
+
+for /f "usebackq tokens=1,2" %%A in (`python -c "import os, sys, pathlib, raveberry; base=pathlib.Path(raveberry.__file__).resolve().parent; os.chdir(base); sys.path.insert(0, str(base)); os.environ['DJANGO_SETTINGS_MODULE']='main.settings'; os.environ['DJANGO_DEBUG']='1'; import django; django.setup(); from core.models import QueuedSong, CurrentSong; print(f'{QueuedSong.objects.count()} {CurrentSong.objects.count()}')"` ) do (
+    set "RB_QUEUE_COUNT=%%A"
+    set "RB_CURRENT_COUNT=%%B"
+)
+
+echo.
+if "%RB_QUEUE_COUNT%"=="0" if "%RB_CURRENT_COUNT%"=="0" (
+    echo No saved queue or current song was found from the last session.
+) else (
+    echo Found saved playback state from the last session:
+    echo   Queued songs: %RB_QUEUE_COUNT%
+    echo   Current song entry: %RB_CURRENT_COUNT%
+    echo.
+    choice /C YN /N /M "Reset the saved queue/current song before starting? [Y/N]: "
+    echo.
+    if errorlevel 2 (
+        echo Keeping saved queue/current song and resuming previous session state if available.
+    ) else (
+        python -c "import os, sys, pathlib, raveberry; base=pathlib.Path(raveberry.__file__).resolve().parent; os.chdir(base); sys.path.insert(0, str(base)); os.environ['DJANGO_SETTINGS_MODULE']='main.settings'; os.environ['DJANGO_DEBUG']='1'; import django; django.setup(); from core.models import QueuedSong, CurrentSong; QueuedSong.objects.all().delete(); CurrentSong.objects.all().delete()"
+        if errorlevel 1 (
+            echo [WARNING] Failed to clear the saved queue/current song. Starting anyway.
+        ) else (
+            echo Saved queue/current song was cleared.
+        )
+    )
+)
+
 title Raveberry
 echo.
 echo Starting Raveberry...
@@ -68,8 +96,3 @@ if not "%RB_EXIT%"=="0" (
 )
 pause
 exit /b %RB_EXIT%
-'''
-
-path = Path('/mnt/data/Start-Raveberry.cmd')
-path.write_text(content, encoding='utf-8')
-print(f"Wrote {path}")
