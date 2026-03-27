@@ -65,11 +65,15 @@ class Playback:
             from core.musiq.mopidy_player import MopidyPlayer
             self.players["mopidy"] = MopidyPlayer()
 
-        if redis.get("spotify_available") and storage.get("output").startswith(
-            "spotify-"
-        ):
+        output = storage.get("output")
+
+        if os.name == "nt" and output == "":
+            output = "windows-default"
+            storage.put("output", output)
+
+        if redis.get("spotify_available") and output.startswith("spotify-"):
             redis.put("active_player", "spotify")
-        elif os.name == "nt" and storage.get("output") == "windows-default":
+        elif os.name == "nt" and output == "windows-default":
             redis.put("active_player", "windows")
         elif not redis.get("mopidy_available"):
             redis.put("active_player", "fake")
