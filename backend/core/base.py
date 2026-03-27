@@ -78,6 +78,7 @@ def context(request: WSGIRequest) -> Dict[str, Any]:
         "hashtag": _get_random_hashtag(),
         "demo": conf.DEMO,
         "controls_enabled": user_manager.has_controls(request.user)
+        or user_manager.has_secret_controls(request)
         or storage.get("interactivity") == storage.Interactivity.full_control,
         "is_admin": user_manager.is_admin(request.user),
         "apk_link": _get_apk_link(),
