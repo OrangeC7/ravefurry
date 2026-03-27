@@ -27,7 +27,20 @@ set "DEFAULT_AUDIO_NORMALIZATION=false"
 set "DEFAULT_HOTSPOT=false"
 set "DEFAULT_BUZZER=false"
 
-goto :main
+REM ---------- Main ----------
+call :ensure_any_conda_environment
+if errorlevel 1 exit /b 1
+
+call :collect_answers
+if errorlevel 1 exit /b 1
+
+call :edit_loop
+if errorlevel 1 exit /b 1
+
+call :run_install
+if errorlevel 1 exit /b 1
+
+exit /b 0
 
 REM ---------- Logging ----------
 :log
@@ -50,10 +63,7 @@ REM ---------- Validators ----------
 set "_check=%~1"
 if not defined _check exit /b 1
 
-REM Drive-letter absolute path, e.g. C:\something
 if "%_check:~1,1%"==":" if "%_check:~2,1%"=="\" exit /b 0
-
-REM UNC path, e.g. \\server\share
 if "%_check:~0,2%"=="\\" exit /b 0
 
 exit /b 1
@@ -66,7 +76,7 @@ echo(%_port%| findstr /R "^[0-9][0-9]*$" >nul || exit /b 1
 if errorlevel 1 exit /b 1
 if %_portnum% lss 1 exit /b 1
 if %_portnum% gtr 65535 exit /b 1
-exit /b 0
+exit /b 1
 
 :normalize_bool
 set "RETVAL="
@@ -469,20 +479,4 @@ if errorlevel 1 (
 )
 
 call :log "Done. Open via hostname/IP on port %PORT_VALUE%."
-exit /b 0
-
-REM ---------- Main ----------
-:main
-call :ensure_any_conda_environment
-if errorlevel 1 exit /b 1
-
-call :collect_answers
-if errorlevel 1 exit /b 1
-
-call :edit_loop
-if errorlevel 1 exit /b 1
-
-call :run_install
-if errorlevel 1 exit /b 1
-
 exit /b 0
