@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import os
+import re
 import time
 from pathlib import Path
 from typing import Optional
+from urllib.parse import unquote, urlparse
 
 from core import redis
 from core.musiq import player
@@ -48,19 +50,41 @@ def _get_instance() -> "WindowsPlayer":
         _INSTANCE = WindowsPlayer()
     return _INSTANCE
 
+def _normalize_media_source(uri: str) -> str:
+    """Normalize file URIs/paths so VLC gets a valid Windows file URI."""
+    if os.name != "nt":
+        return uri
+
+    if uri.startswith("file://"):
+        parsed = urlparse(uri)
+
+        # Handle malformed values like:
+        # file://C%3A%5CUsers%5Cname%5CMusic%5Csong.m4a
+        if parsed.netloc and not parsed.path:
+            raw_path = unquote(parsed.netloc)
+        else:
+            raw_path = unquote(parsed.path)
+            if len(raw_path) >= 3 and raw_path[0] == "/" and raw_path[2] == ":":
+                raw_path = raw_path[1:]
+
+        raw_path = raw_path.replace("/", "\\")
+        return Path(raw_path).resolve().as_uri()
+
+    if re.match(r"^[A-Za-z]:[\\/]", uri):
+        return Path(uri).resolve().as_uri()
+
+    return uri
 
 class WindowsPlayer(player.Player):
     def __init__(self) -> None:
         if vlc is None:
             raise PlaybackError("python-vlc is not installed")
 
-        args = []
-        if _VLC_DIR is not None and (_VLC_DIR / "plugins").exists():
-            args.append(f"--plugin-path={_VLC_DIR / 'plugins'}")
-        self.instance = vlc.Instance(*args)
+        self.instance = vlc.Instance()
         self.media_player = self.instance.media_player_new()
 
     def _set_media(self, uri: str) -> None:
+        uri = _normalize_media_source(uri)
         media = self.instance.media_new(uri)
         self.media_player.set_media(media)
 
@@ -98,7 +122,7 @@ class WindowsPlayer(player.Player):
     def play_alarm(self, interrupt: bool, alarm_path: str) -> None:
         if interrupt:
             self.media_player.stop()
-        self._set_media("file:///" + alarm_path.replace("\\", "/"))
+        self._set_media(Path(alarm_path).resolve().as_uri())
         if self.media_player.play() == -1:
             raise PlaybackError("VLC failed to play alarm")
 
