@@ -13,12 +13,12 @@ from django.core.handlers.wsgi import WSGIRequest
 from django.forms.models import model_to_dict
 from django.http import HttpResponseBadRequest
 from django.http.response import HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.csrf import csrf_exempt
 
-from core import base, redis, user_manager, util
+from core import base, redis, site_mode, user_manager, util
 from core.models import CurrentSong, QueuedSong
 from core.musiq import controller, playback, song_utils
 from core.musiq.music_provider import MusicProvider, ProviderError, WrongUrlError
@@ -145,6 +145,8 @@ def try_providers(session_key: str, providers: List[MusicProvider]) -> MusicProv
 @user_manager.tracked
 def request_music(request: WSGIRequest) -> HttpResponse:
     """Endpoint to request music."""
+    if site_mode.is_afterhours():
+        return HttpResponseBadRequest("FURATIC is currently in After Hours mode.")
     key_param = request.POST.get("key")
     query = request.POST.get("query")
     playlist = request.POST.get("playlist") == "true"
@@ -190,6 +192,8 @@ def request_music(request: WSGIRequest) -> HttpResponse:
 @user_manager.tracked
 def request_radio(request: WSGIRequest) -> HttpResponse:
     """Endpoint to request radio for the current song."""
+    if site_mode.is_afterhours():
+        return HttpResponseBadRequest("FURATIC is currently in After Hours mode.")
     try:
         current_song = CurrentSong.objects.get()
     except CurrentSong.DoesNotExist:
@@ -203,7 +207,6 @@ def index(request: WSGIRequest) -> HttpResponse:
     """Renders the /musiq page."""
     from core import urls
 
-    request.session["secret_controls"] = True
     context = base.context(request)
     context["urls"] = urls.musiq_paths
     context["additional_keywords"] = storage.get("additional_keywords")
@@ -230,6 +233,8 @@ def index(request: WSGIRequest) -> HttpResponse:
 @xframe_options_sameorigin
 def embed(request: WSGIRequest) -> HttpResponse:
     """Renders the embedded player page for /p/."""
+    if site_mode.is_afterhours():
+        return redirect("afterhours")
     from core import urls
 
     context = base.context(request)
