@@ -26,16 +26,23 @@ from core.settings import system
 from core.settings import wifi
 from core import state_handler
 
-_admin_route = os.environ.get("RAVEBERRY_ADMIN_ROUTE")
-if not _admin_route:
+ADMIN_ROUTE = os.environ.get("RAVEBERRY_ADMIN_ROUTE")
+if not ADMIN_ROUTE:
     token = secrets.token_urlsafe(12).replace("-", "").replace("_", "")[:16]
-    _admin_route = f"admin-{token}/"
-print(f"[Raveberry] Admin player URL: /{_admin_route}")
+    ADMIN_ROUTE = f"admin-{token}/"
+
+ADMIN_HOST = os.environ.get("RAVEBERRY_ADMIN_HOST", "127.0.0.1")
+ADMIN_PORT = os.environ.get("RAVEBERRY_ADMIN_PORT", "8080")
+
+print("\n" + "=" * 78)
+print(" RAVEBERRY ADMIN LINK (FULL CONTROL)")
+print(f" http://{ADMIN_HOST}:{ADMIN_PORT}/{ADMIN_ROUTE}")
+print("=" * 78 + "\n")
 
 urlpatterns: List[Union[URLPattern, URLResolver]] = [
     path("", base.landing, name="base"),
     path("p/", musiq.embed, name="musiq"),
-    path(_admin_route, musiq.index, name="musiq-admin"),
+    path(ADMIN_ROUTE, musiq.index, name="musiq-admin"),
     path("musiq/", RedirectView.as_view(pattern_name="base", permanent=False)),
     path("lights/", lights.index, name="lights"),
     path("stream/", base.no_stream, name="no-stream"),
