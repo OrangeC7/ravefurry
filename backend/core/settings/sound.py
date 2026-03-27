@@ -229,7 +229,13 @@ def list_outputs(_request: WSGIRequest) -> JsonResponse:
     icecast = {"id": "icecast", "name": "Icecast"}
     snapcast = {"id": "snapcast", "name": "Snapcast"}
 
-    if conf.DOCKER or not redis.get("mopidy_available"):
+    if os.name == "nt":
+        sinks = [
+            {"id": "windows-default", "name": "Windows default audio device"},
+            client,
+            fakesink,
+        ]
+    elif conf.DOCKER or not redis.get("mopidy_available"):
         sinks = [fakesink, client]
     else:
         output = subprocess.check_output(
@@ -267,6 +273,9 @@ def _set_output(output: str) -> HttpResponse:
 
     use_spotify_player = False
 
+    if os.name == "nt" and output == "windows-default":
+        redis.put("active_player", "windows")
+        return HttpResponse("Windows output was set.")
     if output == "fakesink" or output == "client":
         mopidy_output = "fakesink"
     elif output == "icecast":
