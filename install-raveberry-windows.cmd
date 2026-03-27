@@ -27,20 +27,7 @@ set "DEFAULT_AUDIO_NORMALIZATION=false"
 set "DEFAULT_HOTSPOT=false"
 set "DEFAULT_BUZZER=false"
 
-REM ---------- Main ----------
-call :ensure_any_conda_environment
-if errorlevel 1 exit /b 1
-
-call :collect_answers
-if errorlevel 1 exit /b 1
-
-call :edit_loop
-if errorlevel 1 exit /b 1
-
-call :run_install
-if errorlevel 1 exit /b 1
-
-exit /b 0
+goto :main
 
 REM ---------- Logging ----------
 :log
@@ -590,4 +577,20 @@ if errorlevel 1 (
 )
 
 call :log "Done. Open via hostname/IP on port %PORT_VALUE%."
+exit /b 0
+
+REM ---------- Main ----------
+:main
+call :ensure_any_conda_environment
+if errorlevel 1 exit /b 1
+
+call :collect_answers
+if errorlevel 1 exit /b 1
+
+call :edit_loop
+if errorlevel 1 exit /b 1
+
+call :run_install
+if errorlevel 1 exit /b 1
+
 exit /b 0
