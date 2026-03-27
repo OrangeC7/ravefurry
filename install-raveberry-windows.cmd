@@ -1,11 +1,12 @@
 @echo off
 setlocal EnableExtensions
 
-REM ====================================================================
+REM ======================================================================
 REM Raveberry Interactive Installer for Windows 11, runs on localhost.
 REM Serves through anywt/newt to your server running Pangolin.
 REM Run this from an activated Conda environment intended for Raveberry.
-REM ====================================================================
+REM Make sure to install the VLC Desktop app to your PC before installing.
+REM ======================================================================
 
 REM ---------- Defaults ----------
 set "DEFAULT_CONDA_ENV=Raveberry"
