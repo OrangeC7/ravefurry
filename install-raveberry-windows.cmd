@@ -359,6 +359,110 @@ if errorlevel 1 (
 echo Found git in PATH.
 exit /b 0
 
+:ensure_node_tooling
+where node >nul 2>&1
+if not errorlevel 1 (
+    where yarn >nul 2>&1
+    if not errorlevel 1 (
+        echo Found node and yarn in PATH.
+        exit /b 0
+    )
+)
+
+call :log "Installing Node.js and Yarn into the active Conda environment"
+conda install -y -c conda-forge nodejs yarn
+if errorlevel 1 (
+    call :die "Failed to install nodejs/yarn with conda."
+    exit /b 1
+)
+
+where node >nul 2>&1
+if errorlevel 1 (
+    call :die "node was not found after Conda install."
+    exit /b 1
+)
+
+where yarn >nul 2>&1
+if errorlevel 1 (
+    call :die "yarn was not found after Conda install."
+    exit /b 1
+)
+
+echo Found node and yarn in PATH.
+exit /b 0
+
+:build_frontend_assets
+set "RAVEBERRY_SOURCE_DIR=%INSTALL_DIR%source"
+
+if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
+if errorlevel 1 (
+    call :die "Failed to create install directory '%INSTALL_DIR%'."
+    exit /b 1
+)
+
+call :log "[6/8] Preparing local frontend source tree at %RAVEBERRY_SOURCE_DIR%"
+if not exist "%RAVEBERRY_SOURCE_DIR%" (
+    git clone --branch "%DEFAULT_RAVEBERRY_REF%" "%DEFAULT_RAVEBERRY_REPO%" "%RAVEBERRY_SOURCE_DIR%"
+    if errorlevel 1 (
+        call :die "Failed to clone Raveberry source into %RAVEBERRY_SOURCE_DIR%"
+        exit /b 1
+    )
+) else (
+    if not exist "%RAVEBERRY_SOURCE_DIR%\.git" (
+        call :die "Source directory exists but is not a git repository: %RAVEBERRY_SOURCE_DIR%"
+        exit /b 1
+    )
+    git -C "%RAVEBERRY_SOURCE_DIR%" fetch origin
+    if errorlevel 1 (
+        call :die "Failed to fetch latest source updates."
+        exit /b 1
+    )
+    git -C "%RAVEBERRY_SOURCE_DIR%" checkout "%DEFAULT_RAVEBERRY_REF%"
+    if errorlevel 1 (
+        call :die "Failed to checkout source ref %DEFAULT_RAVEBERRY_REF%."
+        exit /b 1
+    )
+    git -C "%RAVEBERRY_SOURCE_DIR%" reset --hard "origin/%DEFAULT_RAVEBERRY_REF%"
+    if errorlevel 1 (
+        call :die "Failed to reset source tree to origin/%DEFAULT_RAVEBERRY_REF%."
+        exit /b 1
+    )
+)
+
+call :log "[7/8] Building frontend assets"
+yarn --cwd "%RAVEBERRY_SOURCE_DIR%\frontend" install
+if errorlevel 1 (
+    call :die "Frontend yarn install failed."
+    exit /b 1
+)
+
+yarn --cwd "%RAVEBERRY_SOURCE_DIR%\frontend" build
+if errorlevel 1 (
+    call :die "Frontend yarn build failed."
+    exit /b 1
+)
+
+for /f "delims=" %%I in ('python -c "import os, raveberry; print(os.path.dirname(raveberry.__file__))"') do set "RBPKG=%%I"
+if not defined RBPKG (
+    call :die "Could not determine installed Raveberry package path."
+    exit /b 1
+)
+
+if not exist "%RBPKG%\static" mkdir "%RBPKG%\static"
+if errorlevel 1 (
+    call :die "Failed to create installed static directory at %RBPKG%\static"
+    exit /b 1
+)
+
+xcopy /E /I /Y "%RAVEBERRY_SOURCE_DIR%\backend\static\*" "%RBPKG%\static\" >nul
+if errorlevel 1 (
+    call :die "Failed to copy built frontend assets into installed Raveberry package."
+    exit /b 1
+)
+
+echo Frontend assets copied into: %RBPKG%\static
+exit /b 0
+
 :write_config_file
 call :log "[5/6] Writing config to %CONFIG_PATH%"
 
@@ -420,8 +524,11 @@ REM ---------- Install steps ----------
 call :ensure_expected_conda_environment
 if errorlevel 1 exit /b 1
 
-call :log "[2/6] Installing prerequisites"
+call :log "[2/8] Installing prerequisites"
 call :ensure_git
+if errorlevel 1 exit /b 1
+
+call :ensure_node_tooling
 if errorlevel 1 exit /b 1
 
 call :log "[3/6] Using active Conda environment"
@@ -469,10 +576,13 @@ if errorlevel 1 (
     exit /b 1
 )
 
+call :build_frontend_assets
+if errorlevel 1 exit /b 1
+
 call :write_config_file
 if errorlevel 1 exit /b 1
 
-call :log "[6/6] Starting local Raveberry server"
+call :log "[8/8] Starting local Raveberry server"
 python "%RAVEBERRY_SCRIPT%" run --nomopidy
 if errorlevel 1 (
     call :die "raveberry run failed."
