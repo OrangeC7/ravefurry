@@ -252,6 +252,45 @@ help        show this help and exit""",
         storage.put("interactivity", storage.Interactivity.full_voting)
         self._close_django_db_connections()
 
+    def _get_saved_playback_state(self) -> Tuple[int, int]:
+        self._ensure_django()
+        from core.models import CurrentSong, QueuedSong  # pylint: disable=import-outside-toplevel
+
+        queued_count = QueuedSong.objects.count()
+        current_count = CurrentSong.objects.count()
+        self._close_django_db_connections()
+        return queued_count, current_count
+
+    def _send_operator_command(self, command: str) -> None:
+        self._ensure_django()
+        from core.musiq import playback  # pylint: disable=import-outside-toplevel
+
+        playback.request_operator_command(command)
+        self._close_django_db_connections()
+
+    def _prompt_event_queue_choice(self, queued_count: int, current_count: int) -> str:
+        import msvcrt  # pylint: disable=import-outside-toplevel
+
+        assert self.console_lock is not None
+        with self.console_lock:
+            self._clear_status_line()
+            print(
+                f"Saved playback state found: {queued_count} queued song(s), "
+                f"{current_count} current song.",
+                flush=True,
+            )
+            print(
+                "Press K to keep the queue and continue, or C to clear it and start fresh.",
+                flush=True,
+            )
+
+        while True:
+            key = msvcrt.getwch().lower()
+            if key == "k":
+                return "keep"
+            if key == "c":
+                return "clear"
+
     @staticmethod
     def _status_text(mode: str) -> str:
         label = "Event Mode" if mode == "event" else "After Hours"
@@ -309,13 +348,42 @@ help        show this help and exit""",
 
                 key = key.lower()
                 if key == "a":
+                    self._send_operator_command("pause_for_afterhours")
                     self._set_site_mode("afterhours")
-                    self._console_message("Switched public site to After Hours mode.")
+                    self._console_message(
+                        "Switched public site to After Hours mode. Playback is paused."
+                    )
                 elif key == "e":
-                    self._set_site_mode("event")
-                    self._console_message("Switched public site to Event mode.")
+                    current_mode = self._get_site_mode()
+
+                    if current_mode == "afterhours":
+                        queued_count, current_count = self._get_saved_playback_state()
+
+                        if queued_count > 0 or current_count > 0:
+                            choice = self._prompt_event_queue_choice(
+                                queued_count, current_count
+                            )
+
+                            if choice == "clear":
+                                self._send_operator_command("clear_for_event")
+                                self._set_site_mode("event")
+                                self._console_message(
+                                    "Switched public site to Event Mode. Previous queue was cleared."
+                                )
+                            else:
+                                self._set_site_mode("event")
+                                self._send_operator_command("resume_from_afterhours")
+                                self._console_message(
+                                    "Switched public site to Event Mode. Previous queue was kept."
+                                )
+                        else:
+                            self._set_site_mode("event")
+                            self._console_message("Switched public site to Event Mode.")
+                    else:
+                        self._set_site_mode("event")
+                        self._console_message("Already in Event Mode.")
                 elif key == "h":
-                    self._console_message("Hotkeys: E = Event Mode, A = After Hours, H = Help, Q = Quit.")
+                    self._console_message("Hotkeys: E = Event Mode, A = After Hours, Q = Quit.")
                 elif key == "q":
                     self._console_message("Stopping Raveberry...")
                     server.terminate()
