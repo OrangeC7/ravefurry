@@ -121,6 +121,7 @@ class Playback:
                 pass
 
             models.CurrentSong.objects.all().delete()
+            user_manager.clear_queue_slots()
             queue.all().delete()
 
             storage.put("paused", False)
