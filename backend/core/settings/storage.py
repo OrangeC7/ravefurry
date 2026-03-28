@@ -35,7 +35,7 @@ DeviceProgram = Literal
 # maps key to default and type of value
 defaults = {
     # basic settings
-    "interactivity": Interactivity.full_control,
+    "interactivity": Interactivity.full_voting,
     "ip_checking": False,
     "color_indication": Privileges.nobody,
     "color_offset": 0.0,
