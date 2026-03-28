@@ -1,0 +1,1211 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FURATIC Moderator Console</title>
+    <meta name="theme-color" content="#050816">
+    <link rel="icon" href="{{ furatic_logo_url }}" type="image/svg+xml">
+    <link rel="shortcut icon" href="{{ furatic_logo_url }}" type="image/svg+xml">
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #050816;
+        --bg-top: #091022;
+        --bg-bottom: #03040b;
+        --text: #eef4ff;
+        --muted: rgba(238, 244, 255, 0.74);
+        --muted-2: rgba(238, 244, 255, 0.56);
+        --radius: 28px;
+        --cyan: 0, 142, 248;
+        --orange: 222, 104, 0;
+        --green: 74, 227, 0;
+        --magenta: 200, 0, 224;
+        --panel-shadow: 0 30px 120px rgba(0, 0, 0, 0.50);
+        --line: rgba(255, 255, 255, 0.11);
+        --line-strong: rgba(255, 255, 255, 0.18);
+        --panel: rgba(6, 10, 22, 0.34);
+        --panel-strong: rgba(8, 12, 26, 0.54);
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Inter, Roboto, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      }
+
+      body {
+        position: relative;
+        overflow-x: hidden;
+      }
+
+      #aurora {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        z-index: 0;
+        background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 56%, var(--bg-bottom) 100%);
+        transform: translateZ(0);
+      }
+
+      .noise,
+      .vignette {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .noise {
+        opacity: 0.045;
+        background-image:
+          radial-gradient(circle at 18% 18%, rgba(255,255,255,0.12) 0, rgba(255,255,255,0) 36%),
+          radial-gradient(circle at 82% 0%, rgba(255,255,255,0.08) 0, rgba(255,255,255,0) 30%);
+        mix-blend-mode: screen;
+      }
+
+      .vignette {
+        background:
+          radial-gradient(circle at 50% -10%, rgba(255,255,255,0.05), transparent 42%),
+          radial-gradient(circle at 50% 50%, transparent 0%, transparent 56%, rgba(0,0,0,0.26) 100%);
+      }
+
+      .page {
+        position: relative;
+        z-index: 2;
+        min-height: 100svh;
+        padding: clamp(18px, 3vw, 32px);
+      }
+
+      .shell {
+        width: min(100%, 1260px);
+        margin: 0 auto;
+        display: grid;
+        gap: 18px;
+        opacity: 0;
+        transform: translateY(16px) scale(0.985);
+        transition:
+          opacity 720ms cubic-bezier(0.22, 1, 0.36, 1),
+          transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      body.is-ready .shell {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+
+      .card {
+        position: relative;
+        overflow: hidden;
+        isolation: isolate;
+        border-radius: var(--radius);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        box-shadow: var(--panel-shadow);
+        -webkit-backdrop-filter: blur(26px) saturate(120%);
+        backdrop-filter: blur(26px) saturate(120%);
+      }
+
+      .card::before {
+        content: "";
+        position: absolute;
+        inset: 1px;
+        border-radius: calc(var(--radius) - 1px);
+        background:
+          radial-gradient(circle at top left, rgba(255,255,255,0.10), transparent 28%),
+          linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0));
+        opacity: 0.85;
+        pointer-events: none;
+      }
+
+      .hero {
+        padding: clamp(22px, 3vw, 34px);
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 18px;
+        align-items: center;
+      }
+
+      .hero-copy {
+        display: grid;
+        gap: 18px;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        width: max-content;
+        padding: 10px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        line-height: 1;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.94);
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.08);
+      }
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, rgba(var(--cyan), 1), rgba(var(--magenta), 1));
+        box-shadow:
+          0 0 0 0 rgba(var(--cyan), 0.34),
+          0 0 18px rgba(var(--cyan), 0.44);
+        animation: pulse 2.4s ease-in-out infinite;
+      }
+
+      .brand-row {
+        display: grid;
+        gap: 16px;
+      }
+
+      .brand-row img {
+        display: block;
+        width: min(100%, 360px);
+        height: auto;
+        filter:
+          drop-shadow(0 10px 24px rgba(0,0,0,0.26))
+          drop-shadow(0 0 20px rgba(var(--cyan), 0.12));
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(28px, 4.8vw, 58px);
+        line-height: 0.95;
+        letter-spacing: -0.05em;
+        text-wrap: balance;
+      }
+
+      .hero p {
+        margin: 0;
+        max-width: 62ch;
+        color: var(--muted);
+        font-size: clamp(15px, 2vw, 18px);
+        line-height: 1.65;
+        text-wrap: pretty;
+      }
+
+      .hero-actions {
+        display: grid;
+        gap: 12px;
+        justify-items: end;
+      }
+
+      .action-row,
+      .segmented {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .button,
+      button,
+      .segmented button {
+        appearance: none;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255,255,255,0.05);
+        color: var(--text);
+        border-radius: 16px;
+        padding: 12px 16px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        transition:
+          transform 180ms ease,
+          border-color 180ms ease,
+          background 180ms ease,
+          box-shadow 180ms ease,
+          opacity 180ms ease;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+      }
+
+      .button:hover,
+      button:hover,
+      .segmented button:hover {
+        transform: translateY(-1px);
+        border-color: rgba(255,255,255,0.22);
+        background: rgba(255,255,255,0.08);
+      }
+
+      .button:active,
+      button:active,
+      .segmented button:active {
+        transform: translateY(0);
+      }
+
+      .button.primary,
+      .segmented button.active {
+        background: linear-gradient(135deg, rgba(var(--cyan), 0.26), rgba(var(--magenta), 0.18));
+        border-color: rgba(var(--cyan), 0.38);
+        box-shadow:
+          0 18px 40px rgba(0,0,0,0.18),
+          inset 0 1px 0 rgba(255,255,255,0.06),
+          0 0 24px rgba(var(--cyan), 0.12);
+      }
+
+      .button.warn,
+      button.warn {
+        background: linear-gradient(135deg, rgba(var(--orange), 0.24), rgba(var(--magenta), 0.16));
+        border-color: rgba(var(--orange), 0.34);
+      }
+
+      .button.good,
+      button.good {
+        background: linear-gradient(135deg, rgba(var(--green), 0.24), rgba(var(--cyan), 0.14));
+        border-color: rgba(var(--green), 0.34);
+      }
+
+      .button.subtle,
+      button.subtle {
+        background: rgba(255,255,255,0.04);
+      }
+
+      .button:disabled,
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
+        gap: 18px;
+      }
+
+      .stack {
+        display: grid;
+        gap: 18px;
+      }
+
+      .section {
+        padding: 22px;
+        display: grid;
+        gap: 18px;
+      }
+
+      .section h2 {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: -0.03em;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .eyebrow {
+        margin: 0 0 6px;
+        font-size: 12px;
+        line-height: 1;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--muted-2);
+        font-weight: 800;
+      }
+
+      .section-copy {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .stat {
+        padding: 16px;
+        border-radius: 20px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.035);
+        display: grid;
+        gap: 6px;
+      }
+
+      .stat-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--muted-2);
+        font-weight: 800;
+      }
+
+      .stat-value {
+        font-size: clamp(20px, 3vw, 28px);
+        font-weight: 800;
+        letter-spacing: -0.04em;
+      }
+
+      .song-card {
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+        border-radius: 22px;
+        border: 1px solid rgba(255,255,255,0.09);
+        background: rgba(255,255,255,0.04);
+      }
+
+      .song-title {
+        font-size: clamp(20px, 2.4vw, 28px);
+        font-weight: 800;
+        letter-spacing: -0.04em;
+      }
+
+      .song-meta,
+      .helper-grid {
+        display: grid;
+        gap: 10px;
+      }
+
+      .meta-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 14px;
+        color: var(--muted);
+      }
+
+      .token {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 11px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.04);
+        color: rgba(255,255,255,0.92);
+        font-size: 13px;
+      }
+
+      .queue-list,
+      .ban-list {
+        display: grid;
+        gap: 12px;
+      }
+
+      .queue-item,
+      .ban-item {
+        display: grid;
+        gap: 14px;
+        padding: 16px 18px;
+        border-radius: 22px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.04);
+      }
+
+      .queue-item {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+      }
+
+      .queue-copy {
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .queue-title-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 12px;
+      }
+
+      .queue-title {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+      }
+
+      .queue-artist {
+        color: var(--muted);
+      }
+
+      .queue-actions,
+      .ban-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+
+      .queue-actions button,
+      .ban-actions button {
+        min-width: 118px;
+      }
+
+      .manual-ban {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+      }
+
+      input[type="text"] {
+        width: 100%;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.05);
+        color: var(--text);
+        border-radius: 16px;
+        padding: 14px 16px;
+        font: inherit;
+        outline: none;
+        transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+      }
+
+      input[type="text"]::placeholder {
+        color: var(--muted-2);
+      }
+
+      input[type="text"]:focus {
+        border-color: rgba(var(--cyan), 0.42);
+        background: rgba(255,255,255,0.07);
+        box-shadow: 0 0 0 4px rgba(var(--cyan), 0.12);
+      }
+
+      .empty-state {
+        padding: 18px;
+        border-radius: 20px;
+        border: 1px dashed rgba(255,255,255,0.16);
+        color: var(--muted);
+        background: rgba(255,255,255,0.03);
+      }
+
+      .toast {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 5;
+        min-width: min(420px, calc(100vw - 36px));
+        max-width: 520px;
+        padding: 14px 16px;
+        border-radius: 18px;
+        background: rgba(8, 12, 22, 0.88);
+        border: 1px solid rgba(255,255,255,0.12);
+        box-shadow: 0 18px 50px rgba(0,0,0,0.34);
+        backdrop-filter: blur(20px);
+        opacity: 0;
+        transform: translateY(14px);
+        pointer-events: none;
+        transition: opacity 180ms ease, transform 180ms ease;
+      }
+
+      .toast.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .toast.good {
+        border-color: rgba(var(--green), 0.35);
+      }
+
+      .toast.warn {
+        border-color: rgba(var(--orange), 0.35);
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      @keyframes pulse {
+        0%, 100% {
+          transform: scale(1);
+          box-shadow:
+            0 0 0 0 rgba(var(--cyan), 0.34),
+            0 0 18px rgba(var(--cyan), 0.44);
+        }
+        50% {
+          transform: scale(1.08);
+          box-shadow:
+            0 0 0 8px rgba(var(--cyan), 0.00),
+            0 0 22px rgba(var(--cyan), 0.58);
+        }
+      }
+
+      @media (max-width: 980px) {
+        .hero {
+          grid-template-columns: 1fr;
+        }
+
+        .hero-actions {
+          justify-items: start;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .section,
+        .hero {
+          padding: 18px;
+        }
+
+        .stat-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .queue-item {
+          grid-template-columns: 1fr;
+        }
+
+        .queue-actions,
+        .ban-actions {
+          justify-content: flex-start;
+        }
+
+        .manual-ban {
+          grid-template-columns: 1fr;
+        }
+
+        .action-row,
+        .segmented {
+          width: 100%;
+        }
+
+        .action-row .button,
+        .segmented button {
+          flex: 1 1 auto;
+          justify-content: center;
+          text-align: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="aurora" aria-hidden="true"></canvas>
+    <div class="noise" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <main class="page">
+      <div class="shell">
+        <section class="card hero">
+          <div class="hero-copy">
+            <div class="status-pill"><span class="status-dot"></span> Moderator Console</div>
+            <div class="brand-row">
+              <img src="{{ furatic_logo_wide_url }}" alt="FURATIC logo">
+              <h1>Moderate the queue, mode, and abuse controls from one clean dashboard.</h1>
+              <p>
+                Remove problematic songs, ban abusive client IPs, and switch between event mode and after-hours mode without exposing the full Django admin or playback controls.
+              </p>
+            </div>
+          </div>
+          <div class="hero-actions">
+            <div class="action-row">
+              <a class="button subtle" href="/" target="_blank" rel="noopener">Open queue</a>
+              {% if is_admin %}
+              <a class="button subtle" href="/admin/">Admin</a>
+              {% endif %}
+              <a class="button subtle" href="/accounts/logout/">Log out</a>
+            </div>
+            <div class="segmented" aria-label="Site mode controls">
+              <button id="event-mode-button" class="active" type="button">Event mode</button>
+              <button id="afterhours-mode-button" type="button">After-hours mode</button>
+            </div>
+          </div>
+        </section>
+
+        <div class="grid">
+          <div class="stack">
+            <section class="card section">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Now playing</p>
+                  <h2>Current song</h2>
+                </div>
+                <div class="token" id="current-mode-token">Mode: —</div>
+              </div>
+              <div id="current-song-card" class="song-card">
+                <div class="song-title">Nothing is currently playing.</div>
+                <p class="section-copy">As soon as playback starts, the current track and requester details will appear here.</p>
+              </div>
+            </section>
+
+            <section class="card section">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Moderation queue</p>
+                  <h2>Queued songs</h2>
+                </div>
+                <div class="token"><span id="queue-count">0</span>&nbsp;queued</div>
+              </div>
+              <div class="stat-grid">
+                <div class="stat">
+                  <div class="stat-label">Mode</div>
+                  <div class="stat-value" id="mode-stat">—</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">Queued songs</div>
+                  <div class="stat-value" id="queued-stat">0</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">Banned IPs</div>
+                  <div class="stat-value" id="banned-stat">0</div>
+                </div>
+              </div>
+              <div id="queue-list" class="queue-list">
+                <div class="empty-state">The queue is currently empty.</div>
+              </div>
+            </section>
+          </div>
+
+          <div class="stack">
+            <section class="card section">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Abuse protection</p>
+                  <h2>Banned IP addresses</h2>
+                </div>
+                <div class="token"><span id="banned-count">0</span>&nbsp;active</div>
+              </div>
+              <p class="section-copy">
+                Banned IPs are stored persistently and are enforced before the public queue, voting, and request routes execute.
+              </p>
+              <label class="sr-only" for="manual-ban-input">Ban IP address</label>
+              <div class="manual-ban">
+                <input id="manual-ban-input" type="text" inputmode="text" spellcheck="false" placeholder="Ban an IP directly, for example 203.0.113.42">
+                <button id="manual-ban-button" class="warn" type="button">Ban IP</button>
+              </div>
+              <div id="ban-list" class="ban-list">
+                <div class="empty-state">No IPs are currently banned.</div>
+              </div>
+            </section>
+
+            <section class="card section">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Operator notes</p>
+                  <h2>What moderators can do</h2>
+                </div>
+              </div>
+              <div class="helper-grid">
+                <div class="token">Remove any queued song</div>
+                <div class="token">Ban the requester IP for a song</div>
+                <div class="token">Switch event mode / after-hours mode</div>
+                <div class="token">See which IP requested each item</div>
+              </div>
+              <p class="section-copy">
+                Playback transport, volume, library settings, and the full system configuration remain restricted to admins.
+              </p>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script>
+      const CSRF_TOKEN = "{{ csrf_token }}";
+      const MODERATOR_STATE_URL = "{{ moderator_state_url }}";
+      const MODERATOR_REMOVE_SONG_URL = "{{ moderator_remove_song_url }}";
+      const MODERATOR_BAN_IP_URL = "{{ moderator_ban_ip_url }}";
+      const MODERATOR_UNBAN_IP_URL = "{{ moderator_unban_ip_url }}";
+      const MODERATOR_SITE_MODE_URL = "{{ moderator_site_mode_url }}";
+
+      function escapeHtml(value) {
+        return String(value == null ? "" : value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function showToast(message, tone) {
+        const toast = document.getElementById("toast");
+        toast.textContent = message;
+        toast.className = "toast visible" + (tone ? " " + tone : "");
+        window.clearTimeout(showToast._timer);
+        showToast._timer = window.setTimeout(function () {
+          toast.className = "toast";
+        }, 3400);
+      }
+
+      async function postForm(url, data) {
+        const body = new URLSearchParams(data);
+        const response = await fetch(url, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+            "X-CSRFToken": CSRF_TOKEN,
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          body: body.toString(),
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || "Request failed");
+        }
+        return response.json();
+      }
+
+      function renderMode(mode) {
+        const prettyMode = mode === "afterhours" ? "After-hours" : "Event";
+        document.getElementById("current-mode-token").textContent = "Mode: " + prettyMode;
+        document.getElementById("mode-stat").textContent = prettyMode;
+        document.getElementById("event-mode-button").classList.toggle("active", mode === "event");
+        document.getElementById("afterhours-mode-button").classList.toggle("active", mode === "afterhours");
+      }
+
+      function renderCurrentSong(song) {
+        const container = document.getElementById("current-song-card");
+        if (!song) {
+          container.innerHTML = '<div class="song-title">Nothing is currently playing.</div><p class="section-copy">As soon as playback starts, the current track and requester details will appear here.</p>';
+          return;
+        }
+
+        const requesterIp = song.requesterIp ? escapeHtml(song.requesterIp) : "Unknown";
+        const banDisabled = song.requesterIp ? "" : " disabled";
+        container.innerHTML = [
+          '<div class="song-title">' + escapeHtml(song.title || song.displayName || "Untitled") + '</div>',
+          '<div class="song-meta">',
+            '<div class="meta-row"><span class="token">Artist: ' + escapeHtml(song.artist || "Unknown") + '</span><span class="token">Votes: ' + escapeHtml(song.votes) + '</span><span class="token">Length: ' + escapeHtml(song.durationFormatted || "—") + '</span></div>',
+            '<div class="meta-row"><span class="token">Requester IP: ' + requesterIp + '</span></div>',
+          '</div>',
+          '<div class="queue-actions">',
+            '<button class="warn" type="button" data-action="ban-current" data-ip="' + escapeHtml(song.requesterIp || "") + '"' + banDisabled + '>Ban requester IP</button>',
+          '</div>'
+        ].join('');
+      }
+
+      function renderQueue(queue) {
+        const list = document.getElementById("queue-list");
+        document.getElementById("queue-count").textContent = String(queue.length);
+        document.getElementById("queued-stat").textContent = String(queue.length);
+
+        if (!queue.length) {
+          list.innerHTML = '<div class="empty-state">The queue is currently empty.</div>';
+          return;
+        }
+
+        list.innerHTML = queue.map(function (song, index) {
+          const requesterIp = song.requesterIp ? escapeHtml(song.requesterIp) : "Unknown";
+          const banDisabled = song.requesterIp ? "" : " disabled";
+          return [
+            '<article class="queue-item">',
+              '<div class="queue-copy">',
+                '<div class="queue-title-row">',
+                  '<span class="token">#' + (index + 1) + '</span>',
+                  '<div class="queue-title">' + escapeHtml(song.title || song.displayName || "Untitled") + '</div>',
+                '</div>',
+                '<div class="queue-artist">' + escapeHtml(song.artist || "Unknown") + '</div>',
+                '<div class="meta-row">',
+                  '<span class="token">Votes: ' + escapeHtml(song.votes) + '</span>',
+                  '<span class="token">Length: ' + escapeHtml(song.durationFormatted || "—") + '</span>',
+                  '<span class="token">Requester IP: ' + requesterIp + '</span>',
+                '</div>',
+              '</div>',
+              '<div class="queue-actions">',
+                '<button class="warn" type="button" data-action="remove-song" data-key="' + escapeHtml(song.queueKey) + '">Remove song</button>',
+                '<button class="subtle" type="button" data-action="ban-song-ip" data-key="' + escapeHtml(song.queueKey) + '" data-ip="' + escapeHtml(song.requesterIp || "") + '"' + banDisabled + '>Ban requester</button>',
+              '</div>',
+            '</article>'
+          ].join('');
+        }).join('');
+      }
+
+      function renderBanList(ips) {
+        const list = document.getElementById("ban-list");
+        document.getElementById("banned-count").textContent = String(ips.length);
+        document.getElementById("banned-stat").textContent = String(ips.length);
+
+        if (!ips.length) {
+          list.innerHTML = '<div class="empty-state">No IPs are currently banned.</div>';
+          return;
+        }
+
+        list.innerHTML = ips.map(function (ip) {
+          return [
+            '<article class="ban-item">',
+              '<div class="queue-title-row">',
+                '<div class="queue-title">' + escapeHtml(ip) + '</div>',
+              '</div>',
+              '<div class="ban-actions">',
+                '<button class="good" type="button" data-action="unban-ip" data-ip="' + escapeHtml(ip) + '">Unban IP</button>',
+              '</div>',
+            '</article>'
+          ].join('');
+        }).join('');
+      }
+
+      function renderState(data) {
+        renderMode(data.mode || "event");
+        renderCurrentSong(data.currentSong || null);
+        renderQueue(Array.isArray(data.queue) ? data.queue : []);
+        renderBanList(Array.isArray(data.bannedIps) ? data.bannedIps : []);
+      }
+
+      let refreshInFlight = false;
+      async function refreshState() {
+        if (refreshInFlight) {
+          return;
+        }
+        refreshInFlight = true;
+        try {
+          const response = await fetch(MODERATOR_STATE_URL, {
+            credentials: "same-origin",
+            cache: "no-store",
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+          });
+          if (!response.ok) {
+            throw new Error(await response.text());
+          }
+          const data = await response.json();
+          renderState(data);
+        } catch (error) {
+          showToast(error.message || "Unable to refresh moderator state.", "warn");
+        } finally {
+          refreshInFlight = false;
+        }
+      }
+
+      async function removeSong(key) {
+        await postForm(MODERATOR_REMOVE_SONG_URL, { key: key });
+        showToast("Song removed from the queue.", "good");
+        await refreshState();
+      }
+
+      async function banIp(ip, queueKey) {
+        const payload = {};
+        if (ip) payload.ip = ip;
+        if (queueKey) payload.queue_key = queueKey;
+        await postForm(MODERATOR_BAN_IP_URL, payload);
+        showToast("IP address banned.", "warn");
+        await refreshState();
+      }
+
+      async function unbanIp(ip) {
+        await postForm(MODERATOR_UNBAN_IP_URL, { ip: ip });
+        showToast("IP address unbanned.", "good");
+        await refreshState();
+      }
+
+      async function setMode(mode) {
+        const data = await postForm(MODERATOR_SITE_MODE_URL, { mode: mode });
+        renderMode(data.mode || mode);
+        showToast(mode === "afterhours" ? "After-hours mode enabled." : "Event mode enabled.", mode === "afterhours" ? "warn" : "good");
+        await refreshState();
+      }
+
+      document.addEventListener("click", async function (event) {
+        const button = event.target.closest("button[data-action]");
+        if (!button) return;
+
+        try {
+          if (button.disabled) return;
+          button.disabled = true;
+          const action = button.getAttribute("data-action");
+          if (action === "remove-song") {
+            await removeSong(button.getAttribute("data-key"));
+          } else if (action === "ban-song-ip") {
+            await banIp(button.getAttribute("data-ip"), button.getAttribute("data-key"));
+          } else if (action === "ban-current") {
+            await banIp(button.getAttribute("data-ip"), "");
+          } else if (action === "unban-ip") {
+            await unbanIp(button.getAttribute("data-ip"));
+          }
+        } catch (error) {
+          showToast(error.message || "Action failed.", "warn");
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      document.getElementById("event-mode-button").addEventListener("click", function () {
+        setMode("event").catch(function (error) {
+          showToast(error.message || "Unable to switch mode.", "warn");
+        });
+      });
+
+      document.getElementById("afterhours-mode-button").addEventListener("click", function () {
+        setMode("afterhours").catch(function (error) {
+          showToast(error.message || "Unable to switch mode.", "warn");
+        });
+      });
+
+      document.getElementById("manual-ban-button").addEventListener("click", function () {
+        const input = document.getElementById("manual-ban-input");
+        const value = input.value.trim();
+        if (!value) {
+          showToast("Enter an IP address to ban.", "warn");
+          return;
+        }
+        banIp(value, "")
+          .then(function () {
+            input.value = "";
+          })
+          .catch(function (error) {
+            showToast(error.message || "Unable to ban IP.", "warn");
+          });
+      });
+
+      document.getElementById("manual-ban-input").addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          document.getElementById("manual-ban-button").click();
+        }
+      });
+
+      (function () {
+        const canvas = document.getElementById("aurora");
+        const ctx = canvas.getContext("2d");
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const prefersReducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const widthRef = { value: 0 };
+        const heightRef = { value: 0 };
+        let rafId = 0;
+
+        function random(min, max) {
+          return Math.random() * (max - min) + min;
+        }
+
+        function makeOrb(index) {
+          const sizeBase = Math.min(widthRef.value || window.innerWidth, heightRef.value || window.innerHeight || 900);
+          return {
+            radius: random(sizeBase * 0.26, sizeBase * 0.46),
+            color: [
+              [0, 142, 248],
+              [200, 0, 224],
+              [222, 104, 0],
+              [74, 227, 0],
+            ][index % 4],
+            alpha: random(0.12, 0.24),
+            centerX: random(0.16, 0.84),
+            centerY: random(0.18, 0.82),
+            driftX: random(0.07, 0.16),
+            driftY: random(0.07, 0.16),
+            phase: random(0, Math.PI * 2),
+            speed: random(0.00004, 0.00009),
+            wobble: random(0.6, 1.2),
+          };
+        }
+
+        let orbs = Array.from({ length: 5 }, function (_, index) {
+          return makeOrb(index);
+        });
+
+        function resizeCanvas() {
+          const width = window.innerWidth;
+          const height = window.innerHeight;
+          widthRef.value = width;
+          heightRef.value = height;
+          canvas.width = Math.round(width * dpr);
+          canvas.height = Math.round(height * dpr);
+          canvas.style.width = width + "px";
+          canvas.style.height = height + "px";
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          orbs = Array.from({ length: 5 }, function (_, index) {
+            return makeOrb(index);
+          });
+          drawBase();
+        }
+
+        function drawBase() {
+          const width = widthRef.value;
+          const height = heightRef.value;
+          const gradient = ctx.createLinearGradient(0, 0, 0, height);
+          gradient.addColorStop(0, "#091022");
+          gradient.addColorStop(0.55, "#050816");
+          gradient.addColorStop(1, "#03040b");
+          ctx.clearRect(0, 0, width, height);
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, width, height);
+        }
+
+        function drawOrb(x, y, radius, color, alpha) {
+          const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+          gradient.addColorStop(0, "rgba(" + color[0] + ", " + color[1] + ", " + color[2] + ", " + alpha + ")");
+          gradient.addColorStop(0.34, "rgba(" + color[0] + ", " + color[1] + ", " + color[2] + ", " + alpha * 0.42 + ")");
+          gradient.addColorStop(1, "rgba(" + color[0] + ", " + color[1] + ", " + color[2] + ", 0)");
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        function render(timestamp) {
+          drawBase();
+          const width = widthRef.value;
+          const height = heightRef.value;
+          ctx.globalCompositeOperation = "screen";
+
+          orbs.forEach(function (orb, index) {
+            const t = timestamp * orb.speed;
+            const x = width * (orb.centerX + Math.sin(t + orb.phase) * orb.driftX + Math.sin(t * 0.61 + index) * 0.03);
+            const y = height * (orb.centerY + Math.cos(t * orb.wobble + orb.phase) * orb.driftY + Math.sin(t * 0.48 + index) * 0.024);
+            const radius = orb.radius * (0.94 + Math.sin(t * 0.85 + index) * 0.08);
+            drawOrb(x, y, radius, orb.color, orb.alpha);
+          });
+
+          ctx.globalCompositeOperation = "source-over";
+          rafId = window.requestAnimationFrame(render);
+        }
+
+        resizeCanvas();
+
+        if (prefersReducedMotion) {
+          drawBase();
+          ctx.globalCompositeOperation = "screen";
+          drawOrb(widthRef.value * 0.22, heightRef.value * 0.24, Math.min(widthRef.value, heightRef.value) * 0.42, [0, 142, 248], 0.20);
+          drawOrb(widthRef.value * 0.76, heightRef.value * 0.24, Math.min(widthRef.value, heightRef.value) * 0.38, [200, 0, 224], 0.19);
+          drawOrb(widthRef.value * 0.28, heightRef.value * 0.78, Math.min(widthRef.value, heightRef.value) * 0.34, [74, 227, 0], 0.12);
+          drawOrb(widthRef.value * 0.80, heightRef.value * 0.72, Math.min(widthRef.value, heightRef.value) * 0.40, [222, 104, 0], 0.18);
+          ctx.globalCompositeOperation = "source-over";
+        } else {
+          rafId = window.requestAnimationFrame(render);
+        }
+
+        let resizeTimer = 0;
+        window.addEventListener("resize", function () {
+          window.clearTimeout(resizeTimer);
+          resizeTimer = window.setTimeout(function () {
+            resizeCanvas();
+          }, 90);
+        }, { passive: true });
+
+        window.addEventListener("beforeunload", function () {
+          if (rafId) {
+            window.cancelAnimationFrame(rafId);
+          }
+        });
+
+        window.requestAnimationFrame(function () {
+          document.body.classList.add("is-ready");
+        });
+      })();
+
+      refreshState();
+      window.setInterval(refreshState, 6000);
+    </script>
+  </body>
+</html>
+```
+
+## `backend/templates/musiq_embed.html`
+**Action:** replace the entire file.
+
+### Before
+```html
+{% extends 'base.html' %}
+{% load static %}
+
+{% block js %}
+    const ADDITIONAL_KEYWORDS = '{{ additional_keywords }}';
+    const FORBIDDEN_KEYWORDS = '{{ forbidden_keywords }}';
+	{% if client_streaming %}
+	const CLIENT_STREAMING = true;
+	{% else %}
+	const CLIENT_STREAMING = false;
+	{% endif %}
+	const YOUTUBE_SUGGESTIONS = {{ youtube_suggestions|default:0 }};
+	const SPOTIFY_SUGGESTIONS = {{ spotify_suggestions|default:0 }};
+	const SOUNDCLOUD_SUGGESTIONS = {{ soundcloud_suggestions|default:0 }};
+	const JAMENDO_SUGGESTIONS = {{ jamendo_suggestions|default:0 }};
+
+    urls['state'] = '{% url 'musiq-state' %}';
+	urls['musiq'] = {
+	{% for path in urls %}
+		'{{ path.name }}': '/ajax/musiq/{{ path.pattern }}',
+	{% endfor %}
+	};
+{% endblock %}
+
+{% block content %}
+<style>
+	.navbar,
+	#menu-container,
+	#hashtag-container,
+	#demo-banner,
+	#disconnected-banner,
+	#reconnected-banner,
+	#update-banner {
+		display: none !important;
+	}
+
+	#content {
+		padding-top: 0;
+	}
+</style>
+
+<ul class="list-group">
+	<li class="list-group-item" id="music-input-card">
+		<span class="clearable">
+			<input class="form-control autocomplete" id="music-input" placeholder="Search for Music..." autofocus autocomplete="off">
+			<i class="fas fa-times" id="clearbutton"></i>
+		</span>
+		<div class="anim-container" id="request-button-container">
+			<i class="fas fa-arrow-circle-right other" id="request-archived-music"></i>
+			<i class="fas fa-search default" id="request-new-music"></i>
+		</div>
+	</li>
+</ul>
+<ul class="list-group" id="current-song-card">
+	<li class="list-group-item empty" id="current-song">
+		{% if show_stream %}
+			<audio>
+			</audio>
+			<i class="fas fa-volume-mute" id="stream-control"></i>
+		{% endif %}
+		<div class="autoscrolling-container" {%if show_stream%}style="margin-right:32px"{%endif%}><span id="current-song-title">Currently Empty</span></div>
+	</li>
+	<li class="list-group-item" id="progress-bar-container">
+		<div class="progress">
+			<div id="progress-bar" class="progress-bar">
+			</div>
+		</div>
+	</li>
+	<li class="list-group-item" id="song-votes">
+		<div class="current-song-vote-indicators" id="current-song-upvote-indicators"></div>
+		<i class="fas fa-chevron-circle-up vote-up"></i>
+		<span id="current-song-votes"></span>
+		<i class="fas fa-chevron-circle-down vote-down"></i>
+		<div class="current-song-vote-indicators" id="current-song-downvote-indicators"></div>
+	</li>
+</ul>
+<ul class="list-group" id="song-queue">
+</ul>
+
+<div id="title-modal" class="modal fade" role="dialog">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-text">
+				Some text in the modal.
+			</div>
+			<a target="_blank" rel="noopener" href="" id="external-link">
+				<i class="fas fa-link"></i>
+			</a>
+		</div>
+	</div>
+</div>
+
+{% endblock %}
