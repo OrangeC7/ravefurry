@@ -68,6 +68,15 @@ class CoreConfig(AppConfig):
             musiq.start()
             basic.start()
 
+            try:
+                from django.db.utils import OperationalError, ProgrammingError
+
+                from core import user_manager
+
+                user_manager.ensure_builtin_moderator()
+            except (OperationalError, ProgrammingError) as exc:
+                logging.warning("unable to initialize built-in moderator: %s", exc)
+
             def stop_workers() -> None:
                 # wake up the playback thread and stop it
                 redis.put("stop_playback_loop", True)
