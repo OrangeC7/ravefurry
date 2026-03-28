@@ -36,7 +36,9 @@ DeviceProgram = Literal
 defaults = {
     # basic settings
     "interactivity": Interactivity.full_voting,
-    "ip_checking": False,
+    "ip_checking": True,
+    "vote_change_cooldown_seconds": 3.0,
+    "banned_ips": "",
     "color_indication": Privileges.nobody,
     "color_offset": 0.0,
     "next_color_index": 0,
