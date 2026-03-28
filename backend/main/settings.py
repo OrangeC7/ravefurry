@@ -62,6 +62,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "core.middleware.ClientIpBanMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "core.middleware.AfterHoursModeMiddleware",
@@ -86,6 +87,7 @@ TEMPLATES = [
 ]
 
 CSRF_FAILURE_VIEW = "core.util.csrf_failure"
+remote_url = None
 with open(os.path.join(BASE_DIR, "config/raveberry.yaml"), encoding="utf-8") as f:
     config = yaml.safe_load(f)
 try:
@@ -95,18 +97,25 @@ try:
     # this happens when django is proxied behind a server that does the ssl-handling
     # list the provided remote url as a trusted origin
     remote_url = config["remote_url"]
-    # override from environment variable, if present
-    env_remote_url = os.environ.get("REMOTE_URL", None)
-    if env_remote_url:
-        remote_url = env_remote_url
-    if remote_url is not None:
-        if not remote_url.startswith("https://") and not remote_url.startswith(
-            "http://"
-        ):
-            remote_url = "https://" + remote_url
-        CSRF_TRUSTED_ORIGINS = [remote_url]
 except KeyError:
-    pass
+    remote_url = None
+
+env_remote_url = os.environ.get("REMOTE_URL", None)
+if env_remote_url:
+    remote_url = env_remote_url
+
+if remote_url is not None:
+    if not remote_url.startswith("https://") and not remote_url.startswith(
+        "http://"
+    ):
+        remote_url = "https://" + remote_url
+    CSRF_TRUSTED_ORIGINS = [remote_url]
+
+# Furatic is typically deployed behind a reverse proxy / tunnel.
+# Trust the forwarded scheme and host so Django builds the correct origin during auth.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
 
 WSGI_APPLICATION = "main.wsgi.application"
 
@@ -202,8 +211,44 @@ USE_TZ = True
 
 # Users
 LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "musiq"
-LOGOUT_REDIRECT_URL = "musiq"
+LOGIN_REDIRECT_URL = "logged-in"
+LOGOUT_REDIRECT_URL = "base"
+# only preserve user sessions for an hour
+# SESSION_COOKIE_AGE = 3600
+
+TRUSTED_PROXY_IPS = tuple(
+    ip.strip()
+    for ip in os.environ.get("TRUSTED_PROXY_IPS", "127.0.0.1,::1").split(",")
+    if ip.strip()
+)
+CLIENT_IP_HEADER_CANDIDATES = (
+    "HTTP_X_FORWARDED_FOR",
+    "HTTP_X_REAL_IP",
+    "HTTP_CF_CONNECTING_IP",
+    "HTTP_TRUE_CLIENT_IP",
+    "HTTP_X_CLIENT_IP",
+    "HTTP_FORWARDED",
+)
+
+FURATIC_PUBLIC_URL = remote_url or ""
+FURATIC_DISCORD_INVITE_URL = os.environ.get("FURATIC_DISCORD_INVITE_URL", "")
+FURATIC_VRCHAT_GROUP_URL = os.environ.get("FURATIC_VRCHAT_GROUP_URL", "")
+FURATIC_HLS_URL = os.environ.get(
+    "FURATIC_HLS_URL",
+    "https://aux.furatic.xyz:8888/live/index.m3u8",
+)
+FURATIC_LOGO_SQUARE_URL = os.environ.get(
+    "FURATIC_LOGO_SQUARE_URL",
+    "https://raw.githubusercontent.com/OrangeC7/raveberry/master/FuraticLogo.svg",
+)
+FURATIC_LOGO_WIDE_URL = os.environ.get(
+    "FURATIC_LOGO_WIDE_URL",
+    "https://raw.githubusercontent.com/OrangeC7/raveberry/master/FuraticLogoWide.svg",
+)
+FURATIC_MOD_USERNAME = os.environ.get("FURATIC_MOD_USERNAME", "mod")
+FURATIC_OBS_OUTPUT_DIR = os.path.expanduser(
+    os.environ.get("FURATIC_OBS_OUTPUT_DIR", "~/Documents/Raveberry")
+)
 # only preserve user sessions for an hour
 # SESSION_COOKIE_AGE = 3600
 
