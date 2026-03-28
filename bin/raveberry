@@ -9,6 +9,10 @@ import argparse
 import pathlib
 import importlib.util
 from typing import Optional, Tuple, Dict, Any
+import secrets
+import string
+import threading
+import time
 
 
 class Raveberry:
@@ -29,6 +33,8 @@ class Raveberry:
         self.module_used: Optional[bool] = None
         self.default_config: Optional[str] = None
         self.used_config: Optional[str] = None
+        self.django_ready = False
+        self.console_lock = None
 
     def main(self) -> None:
         """Parses the commandline and executes the corresponding method."""
@@ -174,6 +180,143 @@ help        show this help and exit""",
                 )
         return mopidy, celery
 
+    def _ensure_django(self) -> None:
+        if self.django_ready:
+            return
+
+        assert self.directory
+        if self.directory not in sys.path:
+            sys.path.insert(0, self.directory)
+
+        os.environ.setdefault("DJANGO_SETTINGS_MODULE", "main.settings")
+        os.environ.setdefault("DJANGO_DEBUG", "1")
+
+        import django  # pylint: disable=import-outside-toplevel
+        django.setup()
+        self.django_ready = True
+
+    @staticmethod
+    def _random_admin_password(length: int = 12) -> str:
+        alphabet = string.ascii_letters + string.digits + "!@#$%^&*()-_=+"
+        return "".join(secrets.choice(alphabet) for _ in range(length))
+
+    def _ensure_runtime_admin_credentials(self) -> Tuple[str, str]:
+        self._ensure_django()
+        from django.contrib.auth import get_user_model  # pylint: disable=import-outside-toplevel
+
+        username = "admin"
+        password = self._random_admin_password()
+        user_model = get_user_model()
+
+        user, created = user_model.objects.get_or_create(
+            username=username,
+            defaults={
+                "is_staff": True,
+                "is_superuser": True,
+                "is_active": True,
+            },
+        )
+        if created:
+            user.is_staff = True
+            user.is_superuser = True
+            user.is_active = True
+
+        user.is_staff = True
+        user.is_superuser = True
+        user.is_active = True
+        user.set_password(password)
+        user.save()
+
+        return username, password
+
+    def _get_site_mode(self) -> str:
+        self._ensure_django()
+        from core import site_mode  # pylint: disable=import-outside-toplevel
+
+        return site_mode.get_mode()
+
+    def _set_site_mode(self, mode: str) -> None:
+        self._ensure_django()
+        from core import site_mode  # pylint: disable=import-outside-toplevel
+
+        site_mode.set_mode(mode)
+
+    @staticmethod
+    def _status_text(mode: str) -> str:
+        label = "Event Mode" if mode == "event" else "After Hours"
+        return f"[E] Event Mode  [A] After Hours  [H] Help  [Q] Quit   Current: {label}"
+
+    def _clear_status_line(self) -> None:
+        sys.stdout.write("\r" + (" " * 160) + "\r")
+        sys.stdout.flush()
+
+    def _draw_status_line(self) -> None:
+        mode = self._get_site_mode()
+        sys.stdout.write("\r" + self._status_text(mode))
+        sys.stdout.flush()
+
+    def _console_message(self, message: str) -> None:
+        assert self.console_lock is not None
+        with self.console_lock:
+            self._clear_status_line()
+            print(message, flush=True)
+            self._draw_status_line()
+
+    def _print_admin_login(self, username: str, password: str) -> None:
+        print("\n" + "=" * 78)
+        print(" FURATIC ADMIN LOGIN")
+        print(" Link:     http://127.0.0.1:8080/admin/")
+        print(f" Username: {username}")
+        print(f" Password: {password}")
+        print("=" * 78 + "\n")
+
+    def _handle_windows_controls(self, server: subprocess.Popen) -> None:
+        import msvcrt  # pylint: disable=import-outside-toplevel
+
+        def pump_output() -> None:
+            assert server.stdout is not None
+            for raw_line in server.stdout:
+                line = raw_line.rstrip("\r\n")
+                with self.console_lock:
+                    self._clear_status_line()
+                    print(line, flush=True)
+                    self._draw_status_line()
+
+        output_thread = threading.Thread(target=pump_output, daemon=True)
+        output_thread.start()
+
+        self._console_message("FURATIC controls ready. Press H for help.")
+
+        while server.poll() is None:
+            if msvcrt.kbhit():
+                key = msvcrt.getwch()
+                if key in ("\x00", "\xe0"):
+                    if msvcrt.kbhit():
+                        msvcrt.getwch()
+                    time.sleep(0.05)
+                    continue
+
+                key = key.lower()
+                if key == "a":
+                    self._set_site_mode("afterhours")
+                    self._console_message("Switched public site to After Hours mode.")
+                elif key == "e":
+                    self._set_site_mode("event")
+                    self._console_message("Switched public site to Event mode.")
+                elif key == "h":
+                    self._console_message("Hotkeys: E = Event Mode, A = After Hours, H = Help, Q = Quit.")
+                elif key == "q":
+                    self._console_message("Stopping Raveberry...")
+                    server.terminate()
+                    break
+
+            time.sleep(0.05)
+
+        output_thread.join(timeout=1.0)
+        with self.console_lock:
+            self._clear_status_line()
+            print("", flush=True)
+
     def run_server(self, nomopidy=False, use_celery=False) -> None:
         """Run Raveberry with user privileges."""
         spec = importlib.util.find_spec("django")
@@ -181,9 +324,11 @@ help        show this help and exit""",
             print("Please install required dependencies:")
             print("\tpip3 install raveberry[run]")
             sys.exit(1)
+
         if not os.path.isfile("db.sqlite3"):
             print("first time running raveberry, preparing...")
             self.user_prepare()
+
         print("This is the basic raveberry version using a debug server.")
         print("To install with all features run `raveberry install`")
 
@@ -193,18 +338,59 @@ help        show this help and exit""",
         if not use_celery:
             additional_env["DJANGO_NO_CELERY"] = "1"
 
+        server = None
         try:
-            subprocess.call(
+            subprocess.check_call(
                 [sys.executable, "manage.py", "migrate"],
                 env={"DJANGO_DEBUG": "1", **os.environ},
             )
-            subprocess.call(
-                [sys.executable, "manage.py", "runserver", "127.0.0.1:8080"],
-                env={"DJANGO_DEBUG": "1", **additional_env, **os.environ},
-            )
+
+            self._set_site_mode("event")
+            admin_username, admin_password = self._ensure_runtime_admin_credentials()
+
+            if os.name == "nt":
+                self.console_lock = threading.Lock()
+                self._print_admin_login(admin_username, admin_password)
+
+                server = subprocess.Popen(
+                    [sys.executable, "manage.py", "runserver", "127.0.0.1:8080", "--noreload"],
+                    env={
+                        "DJANGO_DEBUG": "1",
+                        "PYTHONUNBUFFERED": "1",
+                        **additional_env,
+                        **os.environ,
+                    },
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                )
+
+                time.sleep(0.75)
+                self._handle_windows_controls(server)
+            else:
+                print("\n" + "=" * 78)
+                print(" FURATIC ADMIN LOGIN")
+                print(" Link:     http://127.0.0.1:8080/admin/")
+                print(f" Username: {admin_username}")
+                print(f" Password: {admin_password}")
+                print("=" * 78 + "\n")
+
+                subprocess.call(
+                    [sys.executable, "manage.py", "runserver", "127.0.0.1:8080"],
+                    env={"DJANGO_DEBUG": "1", **additional_env, **os.environ},
+                )
         except KeyboardInterrupt:
             pass
         finally:
+            if server and server.poll() is None:
+                server.terminate()
+                try:
+                    server.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    server.kill()
+
             if mopidy:
                 mopidy.terminate()
             if celery:
@@ -217,22 +403,6 @@ help        show this help and exit""",
             print("first time running raveberry on Windows, preparing...")
             subprocess.check_call(
                 [sys.executable, "manage.py", "migrate"],
-                env={"DJANGO_DEBUG": "1", **os.environ},
-            )
-            subprocess.check_call(
-                [
-                    sys.executable,
-                    "manage.py",
-                    "shell",
-                    "-c",
-                    (
-                        "from django.contrib.auth.models import User; "
-                        "User.objects.filter(username='admin').exists() or "
-                        "User.objects.create_superuser('admin', email='', password='admin'); "
-                        "User.objects.filter(username='mod').exists() or "
-                        "User.objects.create_user('mod', password='mod')"
-                    ),
-                ],
                 env={"DJANGO_DEBUG": "1", **os.environ},
             )
             return
