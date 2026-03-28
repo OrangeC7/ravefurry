@@ -29,13 +29,16 @@ class CoreConfig(AppConfig):
 
         # ready is called for every management command and for autoreload
         # only start raveberry when
-        # in debug mode and the main application is run (not autoreload)
+        # in debug mode and the main application is run (not autoreload),
+        # or when runserver is explicitly launched with --noreload,
         # or in prod mode (run by daphne)
-        start_raveberry = (
-            strtobool(os.environ.get("RUN_MAIN", "0"))
-            if "runserver" in sys.argv
-            else sys.argv[0].endswith("daphne")
-        )
+        if "runserver" in sys.argv:
+            if "--noreload" in sys.argv:
+                start_raveberry = True
+            else:
+                start_raveberry = strtobool(os.environ.get("RUN_MAIN", "0"))
+        else:
+            start_raveberry = sys.argv[0].endswith("daphne")
 
         if conf.TESTING:
             from core.musiq import controller
