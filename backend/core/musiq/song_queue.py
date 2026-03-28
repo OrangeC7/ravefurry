@@ -59,10 +59,13 @@ class SongQueue(models.Manager):
     @transaction.atomic
     def dequeue(self) -> Tuple[int, Optional["QueuedSong"]]:
         """Removes the first completed song from the queue and returns its id and the object."""
+        from core import user_manager
+
         song = self.confirmed().first()
         if song is None:
             return -1, None
         song_id = song.id
+        user_manager.release_queue_slot_for_song(song_id)
         song.delete()
         self.filter(index__gt=song.index).update(index=F("index") - 1)
         return song_id, song
@@ -94,7 +97,10 @@ class SongQueue(models.Manager):
     @transaction.atomic
     def remove(self, key: int) -> "QueuedSong":
         """Removes the song specified by :param key: from the queue and returns it."""
+        from core import user_manager
+
         to_remove = self.get(id=key)
+        user_manager.release_queue_slot_for_song(key)
         to_remove.delete()
         self.filter(index__gt=to_remove.index).update(index=F("index") - 1)
         return to_remove
@@ -173,10 +179,13 @@ class SongQueue(models.Manager):
     def vote(self, key: int, amount: int, threshold: int) -> Optional["QueuedSong"]:
         """Modify the vote-count of the song specified by :param key: by :param amount: votes.
         If the song is now below the threshold, remove and return it."""
+        from core import user_manager
+
         self.filter(id=key).update(votes=F("votes") + amount)
         try:
             song = self.get(id=key)
             if song.votes <= threshold:
+                user_manager.release_queue_slot_for_song(key)
                 song.delete()
                 return song
         except core.models.QueuedSong.DoesNotExist:
