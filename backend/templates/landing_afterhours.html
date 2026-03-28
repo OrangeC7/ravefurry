@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>FURATIC After Hours</title>
     <meta name="theme-color" content="#050816">
-    <link rel="icon" href="https://raw.githubusercontent.com/OrangeC7/raveberry/150947c7bb60bab91b7383a3089319fc1bc74e99/FuraticLogo.svg" type="image/svg+xml">
-    <link rel="shortcut icon" href="https://raw.githubusercontent.com/OrangeC7/raveberry/150947c7bb60bab91b7383a3089319fc1bc74e99/FuraticLogo.svg" type="image/svg+xml">
-    <link rel="mask-icon" href="https://raw.githubusercontent.com/OrangeC7/raveberry/150947c7bb60bab91b7383a3089319fc1bc74e99/FuraticLogo.svg" color="#008ef8">
+    <link rel="icon" href="{{ furatic_logo_url }}" type="image/svg+xml">
+    <link rel="shortcut icon" href="{{ furatic_logo_url }}" type="image/svg+xml">
+    <link rel="mask-icon" href="{{ furatic_logo_url }}" color="#008ef8">
     <style>
       :root {
         color-scheme: dark;
@@ -17,10 +17,6 @@
         --text: #eef4ff;
         --muted: rgba(238, 244, 255, 0.76);
         --muted-2: rgba(238, 244, 255, 0.58);
-        --white-line: rgba(255, 255, 255, 0.11);
-        --white-soft: rgba(255, 255, 255, 0.06);
-        --panel: rgba(9, 14, 30, 0.52);
-        --panel-deeper: rgba(7, 10, 22, 0.66);
         --panel-shadow: 0 28px 120px rgba(0, 0, 0, 0.55);
         --radius: 30px;
         --cyan: 0, 142, 248;
@@ -29,9 +25,7 @@
         --magenta: 200, 0, 224;
       }
 
-      * {
-        box-sizing: border-box;
-      }
+      * { box-sizing: border-box; }
 
       html, body {
         width: 100%;
@@ -109,7 +103,7 @@
         isolation: isolate;
         border-radius: var(--radius);
         padding: clamp(24px, 4vw, 44px);
-        background: rgba(6, 10, 22, 0.25);
+        background: rgba(6, 10, 22, 0.27);
         border: 1px solid rgba(255, 255, 255, 0.10);
         box-shadow: var(--panel-shadow);
         -webkit-backdrop-filter: blur(28px) saturate(118%);
@@ -122,7 +116,6 @@
         inset: 0;
         z-index: -2;
         background: rgba(255, 255, 255, 0.018);
-        opacity: 1;
       }
 
       .card::after {
@@ -153,16 +146,6 @@
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.08);
         box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
-        opacity: 0;
-        transform: translateY(10px);
-        transition:
-          opacity 650ms cubic-bezier(0.22, 1, 0.36, 1) 130ms,
-          transform 720ms cubic-bezier(0.22, 1, 0.36, 1) 130ms;
-      }
-
-      body.is-ready .status {
-        opacity: 1;
-        transform: translateY(0);
       }
 
       .status-dot {
@@ -200,7 +183,6 @@
           inset 0 1px 0 rgba(255,255,255,0.05),
           0 18px 50px rgba(0,0,0,0.30);
         overflow: hidden;
-        transform: translateZ(0);
       }
 
       .logo-wrap::before {
@@ -211,25 +193,15 @@
           conic-gradient(
             from 180deg,
             rgba(var(--cyan), 0.00),
-            rgba(var(--cyan), 0.18),
-            rgba(var(--magenta), 0.18),
-            rgba(var(--orange), 0.18),
+            rgba(var(--cyan), 0.20),
+            rgba(var(--magenta), 0.20),
+            rgba(var(--orange), 0.20),
             rgba(var(--green), 0.16),
             rgba(var(--cyan), 0.00)
           );
         filter: blur(20px);
         opacity: 0.9;
         animation: haloSpin 18s linear infinite;
-      }
-
-      .logo-wrap::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background:
-          linear-gradient(135deg, rgba(255,255,255,0.14), transparent 34%),
-          radial-gradient(circle at 70% 85%, rgba(255,255,255,0.06), transparent 36%);
-        pointer-events: none;
       }
 
       .logo-wrap img {
@@ -259,6 +231,61 @@
         font-size: clamp(16px, 2.15vw, 21px);
         line-height: 1.62;
         text-wrap: pretty;
+      }
+
+      .notify-block {
+        margin-top: 24px;
+        display: grid;
+        gap: 14px;
+      }
+
+      .notify-label {
+        color: var(--muted);
+        font-weight: 600;
+      }
+
+      .notify-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .notify-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        min-height: 46px;
+        padding: 0 18px;
+        border-radius: 16px;
+        color: var(--text);
+        text-decoration: none;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.06);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.04),
+          0 10px 28px rgba(0,0,0,0.24);
+        transition:
+          transform 180ms ease,
+          border-color 180ms ease,
+          background 180ms ease,
+          box-shadow 180ms ease;
+      }
+
+      .notify-button:hover {
+        transform: translateY(-1px);
+        border-color: rgba(255,255,255,0.18);
+        background: rgba(255,255,255,0.09);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.05),
+          0 16px 34px rgba(0,0,0,0.28);
+      }
+
+      .notify-button.is-disabled {
+        opacity: 0.55;
+        pointer-events: none;
       }
 
       .meta {
@@ -330,10 +357,6 @@
       }
 
       @media (max-width: 760px) {
-        .page {
-          align-items: center;
-        }
-
         .hero {
           grid-template-columns: 1fr;
         }
@@ -356,10 +379,6 @@
           border-radius: 24px;
         }
 
-        .meta {
-          gap: 10px;
-        }
-
         .pill {
           width: 100%;
         }
@@ -367,13 +386,11 @@
 
       @media (prefers-reduced-motion: reduce) {
         .shell,
-        .status {
-          transition: none;
-        }
-
         .status-dot,
         .logo-wrap::before,
-        .logo-wrap img {
+        .logo-wrap img,
+        .notify-button {
+          transition: none;
           animation: none;
         }
       }
@@ -387,14 +404,14 @@
     <main class="page">
       <section class="shell" aria-labelledby="title">
         <div class="card">
+          <div class="status">
+            <span class="status-dot"></span>
+            After Hours
+          </div>
 
           <div class="hero">
             <div class="logo-wrap">
-              <img
-                src="https://raw.githubusercontent.com/OrangeC7/raveberry/150947c7bb60bab91b7383a3089319fc1bc74e99/FuraticLogo.svg"
-                alt="FURATIC logo"
-                decoding="async"
-              >
+              <img src="{{ furatic_logo_url }}" alt="FURATIC logo" decoding="async">
             </div>
 
             <div>
@@ -403,6 +420,35 @@
                 Pass The Aux is not active right now.
                 When the event goes live again, this page will switch back automatically.
               </p>
+
+              <div class="notify-block">
+                <div class="notify-label">Get notified for new events here:</div>
+                <div class="notify-row">
+                  <a
+                    class="notify-button{% if not discord_invite_url %} is-disabled{% endif %}"
+                    href="{% if discord_invite_url %}{{ discord_invite_url }}{% else %}#{% endif %}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Discord invite
+                  </a>
+                  <a
+                    class="notify-button{% if not vrchat_group_url %} is-disabled{% endif %}"
+                    href="{% if vrchat_group_url %}{{ vrchat_group_url }}{% else %}#{% endif %}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    VRChat group
+                  </a>
+                </div>
+              </div>
+
+              <div class="meta">
+                <div class="pill"><span class="pill-mark"></span><strong>Mode</strong> After Hours</div>
+                <div class="pill"><span class="pill-mark"></span><strong>Return</strong> Automatic when the event resumes</div>
+              </div>
+
+              <div class="foot">Moderators and admins can still sign in while After Hours mode is active.</div>
             </div>
           </div>
         </div>
@@ -414,128 +460,57 @@
         const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         const canvas = document.getElementById("aurora");
         const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
+        const palette = [
+          [0, 142, 248],
+          [200, 0, 224],
+          [222, 104, 0],
+          [74, 227, 0],
+        ];
 
         let width = 0;
         let height = 0;
         let dpr = 1;
         let rafId = 0;
+        let orbs = [];
 
-        const orbs = [
-          {
-            color: [0, 142, 248],
-            radius: 336,
-            alpha: 0.24,
-            xMulA: 0.28,
-            xMulB: 0.12,
-            yMulA: 0.23,
-            yMulB: 0.07,
-            speedA: 0.13,
-            speedB: 0.23,
-            speedC: 0.16,
-            speedD: 0.10,
-            phaseA: 0.2,
-            phaseB: 1.7,
-            phaseC: 2.6,
-            phaseD: 0.5
-          },
-          {
-            color: [200, 0, 224],
-            radius: 308,
-            alpha: 0.22,
-            xMulA: 0.24,
-            xMulB: 0.10,
-            yMulA: 0.25,
-            yMulB: 0.07,
-            speedA: 0.10,
-            speedB: 0.20,
-            speedC: 0.15,
-            speedD: 0.10,
-            phaseA: 2.3,
-            phaseB: 0.7,
-            phaseC: 1.2,
-            phaseD: 2.1
-          },
-          {
-            color: [222, 104, 0],
-            radius: 272,
-            alpha: 0.18,
-            xMulA: 0.20,
-            xMulB: 0.13,
-            yMulA: 0.20,
-            yMulB: 0.09,
-            speedA: 0.14,
-            speedB: 0.18,
-            speedC: 0.12,
-            speedD: 0.08,
-            phaseA: 1.0,
-            phaseB: 2.8,
-            phaseC: 0.3,
-            phaseD: 1.6
-          },
-          {
-            color: [74, 227, 0],
-            radius: 212,
-            alpha: 0.09,
-            xMulA: 0.14,
-            xMulB: 0.07,
-            yMulA: 0.15,
-            yMulB: 0.06,
-            speedA: 0.08,
-            speedB: 0.15,
-            speedC: 0.10,
-            speedD: 0.06,
-            phaseA: 3.2,
-            phaseB: 1.1,
-            phaseC: 1.8,
-            phaseD: 2.7
-          },
-          {
-            color: [0, 142, 248],
-            radius: 214,
-            alpha: 0.11,
-            xMulA: 0.12,
-            xMulB: 0.16,
-            yMulA: 0.11,
-            yMulB: 0.08,
-            speedA: 0.17,
-            speedB: 0.12,
-            speedC: 0.11,
-            speedD: 0.14,
-            phaseA: 1.4,
-            phaseB: 2.4,
-            phaseC: 0.9,
-            phaseD: 3.1
-          },
-          {
-            color: [222, 104, 0],
-            radius: 196,
-            alpha: 0.10,
-            xMulA: 0.17,
-            xMulB: 0.09,
-            yMulA: 0.12,
-            yMulB: 0.11,
-            speedA: 0.09,
-            speedB: 0.16,
-            speedC: 0.18,
-            speedD: 0.12,
-            phaseA: 2.9,
-            phaseB: 0.4,
-            phaseC: 2.2,
-            phaseD: 1.3
-          }
-        ];
+        function randomBetween(min, max) {
+          return min + Math.random() * (max - min);
+        }
+
+        function buildOrbs() {
+          const count = 7;
+          const minDimension = Math.max(460, Math.min(window.innerWidth, window.innerHeight));
+          orbs = Array.from({ length: count }, function (_, index) {
+            return {
+              color: palette[index % palette.length],
+              radius: minDimension * randomBetween(0.34, 0.62),
+              alpha: randomBetween(0.12, 0.25),
+              xMulA: randomBetween(0.16, 0.31),
+              xMulB: randomBetween(0.06, 0.15),
+              yMulA: randomBetween(0.14, 0.28),
+              yMulB: randomBetween(0.05, 0.12),
+              speedA: randomBetween(0.08, 0.20),
+              speedB: randomBetween(0.09, 0.21),
+              speedC: randomBetween(0.08, 0.18),
+              speedD: randomBetween(0.06, 0.16),
+              phaseA: randomBetween(0, Math.PI * 2),
+              phaseB: randomBetween(0, Math.PI * 2),
+              phaseC: randomBetween(0, Math.PI * 2),
+              phaseD: randomBetween(0, Math.PI * 2),
+            };
+          });
+        }
 
         function resizeCanvas() {
           width = window.innerWidth;
           height = window.innerHeight;
           dpr = Math.min(window.devicePixelRatio || 1, 1.6);
-
           canvas.width = Math.round(width * dpr);
           canvas.height = Math.round(height * dpr);
           canvas.style.width = width + "px";
           canvas.style.height = height + "px";
-
           ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          buildOrbs();
         }
 
         function drawBase() {
@@ -554,7 +529,7 @@
             height * 0.35,
             Math.max(width, height) * 0.75
           );
-          centerGlow.addColorStop(0, "rgba(255,255,255,0.030)");
+          centerGlow.addColorStop(0, "rgba(255,255,255,0.032)");
           centerGlow.addColorStop(1, "rgba(255,255,255,0)");
           ctx.fillStyle = centerGlow;
           ctx.fillRect(0, 0, width, height);
@@ -563,8 +538,8 @@
         function drawOrb(x, y, radius, rgb, alpha) {
           const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
           gradient.addColorStop(0, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`);
-          gradient.addColorStop(0.38, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha * 0.64})`);
-          gradient.addColorStop(0.72, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha * 0.18})`);
+          gradient.addColorStop(0.36, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha * 0.66})`);
+          gradient.addColorStop(0.70, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha * 0.20})`);
           gradient.addColorStop(1, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0)`);
           ctx.fillStyle = gradient;
           ctx.beginPath();
@@ -575,7 +550,6 @@
         function render(now) {
           const t = now * 0.0014;
           drawBase();
-
           ctx.globalCompositeOperation = "screen";
 
           for (const orb of orbs) {
@@ -584,23 +558,18 @@
               + orb.xMulA * Math.sin(t * orb.speedA + orb.phaseA)
               + orb.xMulB * Math.sin(t * orb.speedB + orb.phaseB)
             );
-
             const y = height * (
               0.5
               + orb.yMulA * Math.cos(t * orb.speedC + orb.phaseC)
               + orb.yMulB * Math.sin(t * orb.speedD + orb.phaseD)
             );
-
             const radius = orb.radius * (
-              1
-              + 0.09 * Math.sin(t * (orb.speedA + orb.speedC + orb.speedD * 0.5) + orb.phaseB)
+              1 + 0.09 * Math.sin(t * (orb.speedA + orb.speedC + orb.speedD * 0.5) + orb.phaseB)
             );
-
             drawOrb(x, y, radius, orb.color, orb.alpha);
           }
 
           ctx.globalCompositeOperation = "source-over";
-
           const scrim = ctx.createLinearGradient(0, 0, 0, height);
           scrim.addColorStop(0, "rgba(0,0,0,0.08)");
           scrim.addColorStop(0.45, "rgba(0,0,0,0.02)");
@@ -616,10 +585,10 @@
         if (prefersReducedMotion) {
           drawBase();
           ctx.globalCompositeOperation = "screen";
-          drawOrb(width * 0.24, height * 0.28, 260, [0, 142, 248], 0.18);
-          drawOrb(width * 0.76, height * 0.24, 250, [200, 0, 224], 0.18);
-          drawOrb(width * 0.28, height * 0.78, 220, [74, 227, 0], 0.10);
-          drawOrb(width * 0.78, height * 0.74, 240, [222, 104, 0], 0.14);
+          drawOrb(width * 0.24, height * 0.28, Math.min(width, height) * 0.42, [0, 142, 248], 0.18);
+          drawOrb(width * 0.76, height * 0.24, Math.min(width, height) * 0.40, [200, 0, 224], 0.18);
+          drawOrb(width * 0.28, height * 0.78, Math.min(width, height) * 0.34, [74, 227, 0], 0.11);
+          drawOrb(width * 0.78, height * 0.74, Math.min(width, height) * 0.38, [222, 104, 0], 0.16);
           ctx.globalCompositeOperation = "source-over";
         } else {
           rafId = window.requestAnimationFrame(render);
@@ -630,15 +599,6 @@
           window.clearTimeout(resizeTimer);
           resizeTimer = window.setTimeout(function () {
             resizeCanvas();
-            if (prefersReducedMotion) {
-              drawBase();
-              ctx.globalCompositeOperation = "screen";
-              drawOrb(width * 0.24, height * 0.28, 260, [0, 142, 248], 0.18);
-              drawOrb(width * 0.76, height * 0.24, 250, [200, 0, 224], 0.18);
-              drawOrb(width * 0.28, height * 0.78, 220, [74, 227, 0], 0.10);
-              drawOrb(width * 0.78, height * 0.74, 240, [222, 104, 0], 0.14);
-              ctx.globalCompositeOperation = "source-over";
-            }
           }, 80);
         }, { passive: true });
 
