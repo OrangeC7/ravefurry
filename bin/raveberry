@@ -208,7 +208,7 @@ help        show this help and exit""",
         password = self._random_admin_password()
         user_model = get_user_model()
 
-        user, created = user_model.objects.get_or_create(
+        user, _ = user_model.objects.get_or_create(
             username=username,
             defaults={
                 "is_staff": True,
@@ -216,18 +216,22 @@ help        show this help and exit""",
                 "is_active": True,
             },
         )
-        if created:
-            user.is_staff = True
-            user.is_superuser = True
-            user.is_active = True
 
         user.is_staff = True
         user.is_superuser = True
         user.is_active = True
         user.set_password(password)
-        user.save()
+        user.save(update_fields=["password", "is_staff", "is_superuser", "is_active"])
 
+        self._close_django_db_connections()
         return username, password
+
+    def _close_django_db_connections(self) -> None:
+        if not self.django_ready:
+            return
+        from django.db import connections  # pylint: disable=import-outside-toplevel
+
+        connections.close_all()
 
     def _get_site_mode(self) -> str:
         self._ensure_django()
@@ -347,6 +351,7 @@ help        show this help and exit""",
 
             self._set_site_mode("event")
             admin_username, admin_password = self._ensure_runtime_admin_credentials()
+            self._close_django_db_connections()
 
             if os.name == "nt":
                 self.console_lock = threading.Lock()
