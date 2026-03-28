@@ -239,7 +239,7 @@ def embed(request: WSGIRequest) -> HttpResponse:
 
     context = base.context(request)
     context["urls"] = urls.musiq_paths
-        context["interactivity"] = storage.get("interactivity")
+    context["interactivity"] = storage.get("interactivity")
     context["controls_enabled"] = False
     context["additional_keywords"] = storage.get("additional_keywords")
     context["forbidden_keywords"] = storage.get("forbidden_keywords")
