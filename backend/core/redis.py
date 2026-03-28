@@ -52,6 +52,7 @@ defaults = {
     "bluetoothctl_active": False,
     "bluetooth_devices": [],
     "site_mode": "event",
+    "operator_command": "",
     # user manager
     "active_requests": 0,
     "last_user_count_update": 0.0,
