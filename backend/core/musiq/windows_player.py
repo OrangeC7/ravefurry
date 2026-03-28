@@ -163,3 +163,31 @@ class WindowsPlayer(player.Player):
     @staticmethod
     def set_volume(volume) -> None:
         _get_instance().media_player.audio_set_volume(round(volume * 100))
+
+
+def restart() -> None:
+    WindowsPlayer.restart()
+
+
+def seek_backward(seek_distance: float) -> None:
+    WindowsPlayer.seek_backward(seek_distance)
+
+
+def play() -> None:
+    WindowsPlayer.play()
+
+
+def pause() -> None:
+    WindowsPlayer.pause()
+
+
+def seek_forward(seek_distance: float) -> None:
+    WindowsPlayer.seek_forward(seek_distance)
+
+
+def skip() -> None:
+    WindowsPlayer.skip()
+
+
+def set_volume(volume) -> None:
+    WindowsPlayer.set_volume(volume)
