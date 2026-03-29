@@ -162,12 +162,16 @@ ICECAST_HOST = os.environ.get("ICECAST_HOST", "") or ICECAST_HOST
 ICECAST_PORT = os.environ.get("ICECAST_PORT", "") or ICECAST_PORT
 
 # Database
-if DEBUG:
+USE_SQLITE = strtobool(
+    os.environ.get("DJANGO_USE_SQLITE", "1" if DEBUG else "0")
+)
+
+if USE_SQLITE:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
-            "OPTIONS": {"timeout": 20},
+            "OPTIONS": {"timeout": 30},
         }
     }
 else:
