@@ -73,7 +73,7 @@ class CoreConfig(AppConfig):
 
                 from core import user_manager
 
-                user_manager.ensure_builtin_moderator()
+                user_manager.ensure_builtin_moderator(rotate_if_unset=True)
             except (OperationalError, ProgrammingError) as exc:
                 logging.warning("unable to initialize built-in moderator: %s", exc)
 
