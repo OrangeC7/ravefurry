@@ -206,12 +206,17 @@
 
       .player-stage {
         position: relative;
+        width: min(100%, 540px);
+        margin: 0 auto;
       }
 
       iframe {
         display: block;
         width: 100%;
-        height: min(76vh, 880px);
+        aspect-ratio: 9 / 16;
+        height: auto;
+        max-height: min(64.6vh, 748px);
+        margin: 0 auto;
         border: 0;
         background: transparent !important;
         color-scheme: dark;
@@ -269,7 +274,7 @@
 
       @media (max-width: 860px) {
         iframe {
-          height: min(72vh, 760px);
+          max-height: min(61.2vh, 646px);
         }
       }
 
@@ -277,9 +282,13 @@
         .page {
           padding: 14px 10px 18px;
         }
-
+      
+        .brand {
+          padding-inline: 10px;
+        }
+      
         iframe {
-          height: 78vh;
+          max-height: 66.3vh;
         }
       }
 
