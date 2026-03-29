@@ -53,6 +53,7 @@ IPWARE_PROXY_COUNT = int(os.environ.get("IPWARE_PROXY_COUNT", "1"))
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     "core.apps.CoreConfig",
     "django.contrib.admin",
     "django.contrib.auth",
