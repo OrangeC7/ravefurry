@@ -60,16 +60,36 @@ homewifi:
 ### Remote ###
 # Provide these values to make your instance accessible from the web.
 # See docs/remote.md for more information.
+
 # The absolute path to the private key that is used to build the ssh tunnel to the remote server.
 remote_key:
+
 # The address that the port on the remote machine will bind to. Optional, defaults to 127.0.0.1.
 remote_bind_address:
+
 # The IP of the remote machine.
 remote_ip:
+
 # The port on the remote machine that the tunnel connects to.
 remote_port:
-# The remote url that makes Raveberry accessible. Required if you use https.
-remote_url:
+
+# The remote url that makes Raveberry accessible.
+remote_url: https://furatic.xyz
+
+### Furatic / Reverse Proxy ###
+# Only trust forwarded client/proto headers from these proxy hop IPs.
+# If NEWT reaches the local Raveberry server over loopback, this is already enough.
+trusted_proxy_ips:
+  - 127.0.0.1
+  - ::1
+
+furatic_discord_invite_url:
+furatic_vrchat_group_url:
+furatic_hls_url: https://aux.furatic.xyz:8888/live/index.m3u8
+furatic_logo_square_url: https://raw.githubusercontent.com/OrangeC7/raveberry/master/FuraticLogo.svg
+furatic_logo_wide_url: https://raw.githubusercontent.com/OrangeC7/raveberry/master/FuraticLogoWide.svg
+furatic_mod_username: mod
+furatic_obs_output_dir: ~/Documents/Raveberry
 
 ### Backup ###
 # If a past backup is present, its path can be specified here.
