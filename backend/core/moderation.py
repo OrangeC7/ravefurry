@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from core import base, models, site_mode, user_manager
-from core.musiq import musiq, playback, song_utils
+from core.musiq import controller as musiq_controller, musiq, playback, song_utils
 from core.settings import storage
 
 
@@ -66,6 +66,7 @@ def dashboard(request: WSGIRequest) -> HttpResponse:
         {
             "moderator_state_url": reverse("moderator-state"),
             "moderator_remove_song_url": reverse("moderator-remove-song"),
+            "moderator_skip_current_url": reverse("moderator-skip-current"),
             "moderator_ban_ip_url": reverse("moderator-ban-ip"),
             "moderator_unban_ip_url": reverse("moderator-unban-ip"),
             "moderator_site_mode_url": reverse("moderator-site-mode"),
@@ -99,6 +100,13 @@ def remove_song(request: WSGIRequest) -> HttpResponse:
     musiq.update_state()
     return JsonResponse(_state_payload())
 
+@require_POST
+@user_manager.moderator_required
+def skip_current_song(_request: WSGIRequest) -> HttpResponse:
+    """Skip the currently playing song."""
+    musiq_controller._skip()
+    musiq.update_state()
+    return JsonResponse(_state_payload())
 
 @require_POST
 @user_manager.moderator_required
