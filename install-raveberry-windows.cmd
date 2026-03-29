@@ -28,6 +28,12 @@ set "DEFAULT_AUDIO_NORMALIZATION=false"
 set "DEFAULT_HOTSPOT=false"
 set "DEFAULT_BUZZER=false"
 
+set "DEFAULT_POSTGRES_HOST=127.0.0.1"
+set "DEFAULT_POSTGRES_PORT=54329"
+set "DEFAULT_POSTGRES_DB=raveberry"
+set "DEFAULT_POSTGRES_USER=raveberry"
+set "DEFAULT_POSTGRES_PASSWORD=raveberry"
+
 REM ---------- Main ----------
 call :ensure_any_conda_environment
 if errorlevel 1 exit /b 1
@@ -483,6 +489,21 @@ if errorlevel 1 exit /b 1
 call :ensure_ffmpeg
 if errorlevel 1 exit /b 1
 
+set "DJANGO_USE_SQLITE=0"
+set "POSTGRES_HOST=%DEFAULT_POSTGRES_HOST%"
+set "POSTGRES_PORT=%DEFAULT_POSTGRES_PORT%"
+set "POSTGRES_DB=%DEFAULT_POSTGRES_DB%"
+set "POSTGRES_USER=%DEFAULT_POSTGRES_USER%"
+set "POSTGRES_PASSWORD=%DEFAULT_POSTGRES_PASSWORD%"
+set "PGPASSWORD=%POSTGRES_PASSWORD%"
+
+if not defined LOCALAPPDATA set "LOCALAPPDATA=%USERPROFILE%\AppData\Local"
+set "RAVEBERRY_PGROOT=%LOCALAPPDATA%\Raveberry\postgres"
+set "RAVEBERRY_PGDATA=%RAVEBERRY_PGROOT%\data"
+set "RAVEBERRY_PGLOG=%RAVEBERRY_PGROOT%\postgres.log"
+
+set "PATH=%CONDA_PREFIX%\Library\bin;%PATH%"
+
 call :log "[2/8] Installing prerequisites"
 call :ensure_git
 if errorlevel 1 exit /b 1
@@ -665,12 +686,98 @@ if errorlevel 1 (
 call :write_config_file
 if errorlevel 1 exit /b 1
 
+call :ensure_local_postgres
+if errorlevel 1 exit /b 1
 call :log "[8/8] Starting local Raveberry server"
 python "%RAVEBERRY_SCRIPT%" run --nomopidy
 if errorlevel 1 (
     call :die "raveberry run failed."
     exit /b 1
 )
+
+exit /b 0
+
+:ensure_local_postgres
+call :log "[9/9] Ensuring local PostgreSQL"
+
+where initdb >nul 2>&1
+if errorlevel 1 (
+    call :log "Installing PostgreSQL server/client into the active Conda environment"
+    call conda install -y -c conda-forge postgresql psycopg2
+    if errorlevel 1 (
+        call :die "Failed to install PostgreSQL server/client into the active Conda environment."
+        exit /b 1
+    )
+    set "PATH=%CONDA_PREFIX%\Library\bin;%PATH%"
+)
+
+python -c "import psycopg2" >nul 2>&1
+if errorlevel 1 (
+    call :log "Installing psycopg2 into the active Conda environment"
+    call conda install -y -c conda-forge psycopg2
+    if errorlevel 1 (
+        call :die "Failed to install psycopg2 into the active Conda environment."
+        exit /b 1
+    )
+)
+
+if not exist "%RAVEBERRY_PGROOT%" mkdir "%RAVEBERRY_PGROOT%"
+if errorlevel 1 (
+    call :die "Failed to create PostgreSQL root directory '%RAVEBERRY_PGROOT%'."
+    exit /b 1
+)
+
+if not exist "%RAVEBERRY_PGDATA%\PG_VERSION" (
+    call :log "Initializing local PostgreSQL data directory"
+    initdb -D "%RAVEBERRY_PGDATA%" -U postgres -A trust
+    if errorlevel 1 (
+        call :die "Failed to initialize PostgreSQL data directory."
+        exit /b 1
+    )
+
+    >> "%RAVEBERRY_PGDATA%\postgresql.conf" echo listen_addresses = '127.0.0.1'
+    >> "%RAVEBERRY_PGDATA%\postgresql.conf" echo port = %POSTGRES_PORT%
+)
+
+pg_isready -h %POSTGRES_HOST% -p %POSTGRES_PORT% -d postgres >nul 2>&1
+if errorlevel 1 (
+    call :log "Starting local PostgreSQL"
+    pg_ctl -D "%RAVEBERRY_PGDATA%" -l "%RAVEBERRY_PGLOG%" -o "-p %POSTGRES_PORT%" -w start
+    if errorlevel 1 (
+        call :die "Failed to start local PostgreSQL."
+        exit /b 1
+    )
+)
+
+timeout /t 2 /nobreak >nul
+
+pg_isready -h %POSTGRES_HOST% -p %POSTGRES_PORT% -d postgres >nul 2>&1
+if errorlevel 1 (
+    call :die "Local PostgreSQL is still not accepting connections after startup."
+    exit /b 1
+)
+
+psql -h %POSTGRES_HOST% -p %POSTGRES_PORT% -U postgres -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='%POSTGRES_USER%'" 2>nul | findstr /R "^[ ]*1[ ]*$" >nul
+if errorlevel 1 (
+    call :log "Creating PostgreSQL role %POSTGRES_USER%"
+    psql -h %POSTGRES_HOST% -p %POSTGRES_PORT% -U postgres -d postgres -c "CREATE ROLE %POSTGRES_USER% LOGIN PASSWORD '%POSTGRES_PASSWORD%';"
+    if errorlevel 1 (
+        call :die "Failed to create PostgreSQL role '%POSTGRES_USER%'."
+        exit /b 1
+    )
+)
+
+psql -h %POSTGRES_HOST% -p %POSTGRES_PORT% -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='%POSTGRES_DB%'" 2>nul | findstr /R "^[ ]*1[ ]*$" >nul
+if errorlevel 1 (
+    call :log "Creating PostgreSQL database %POSTGRES_DB%"
+    createdb -h %POSTGRES_HOST% -p %POSTGRES_PORT% -U postgres -O %POSTGRES_USER% %POSTGRES_DB%
+    if errorlevel 1 (
+        call :die "Failed to create PostgreSQL database '%POSTGRES_DB%'."
+        exit /b 1
+    )
+)
+
+exit /b 0
 
 call :log "Done. Open via hostname/IP on port %PORT_VALUE%."
 exit /b 0
