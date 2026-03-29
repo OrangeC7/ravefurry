@@ -359,6 +359,32 @@ LOGGING = {
             "maxBytes": 1024 * 1024 * 15,  # 15MB
             "backupCount": 10,
         },
+    "loggers": {
+        "django.server": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "daphne": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "daphne.server": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "daphne.http_protocol": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "daphne.ws_protocol": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
         "errorfile": {
             "level": "ERROR",
             "formatter": "precise",
