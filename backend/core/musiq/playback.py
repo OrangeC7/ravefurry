@@ -39,6 +39,19 @@ def start() -> None:
     """Initializes this module by starting the playback and buzzer loop."""
     paused = storage.get("paused")
     redis.put("paused", paused)
+
+    # scrub stale runtime flags from previous runs
+    redis.put("playing", False)
+    redis.put("backup_playing", False)
+    redis.put("operator_command", "")
+    redis.put("stop_playback_loop", False)
+
+    # if there is no queued song at startup, don't recover an old CurrentSong
+    if queue.count() == 0 and CurrentSong.objects.exists():
+        CurrentSong.objects.all().delete()
+        storage.put("paused", False)
+        redis.put("paused", False)
+
     _handle_buzzer.delay()
     _loop.delay()
 
