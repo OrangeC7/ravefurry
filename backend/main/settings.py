@@ -87,28 +87,27 @@ TEMPLATES = [
 ]
 
 CSRF_FAILURE_VIEW = "core.util.csrf_failure"
-remote_url = None
+
 with open(os.path.join(BASE_DIR, "config/raveberry.yaml"), encoding="utf-8") as f:
-    config = yaml.safe_load(f)
-try:
-    # Since django 4.0 not only the Referer is checked for csrf protection, but also HTTP_ORIGIN
-    # This leads to csrf failures if there is a protocol mismatch
-    # e.g. http://demo.raveberry.party vs https://demo.raveberry.party
-    # this happens when django is proxied behind a server that does the ssl-handling
-    # list the provided remote url as a trusted origin
-    remote_url = config["remote_url"]
-except KeyError:
-    remote_url = None
+    config = yaml.safe_load(f) or {}
 
-env_remote_url = os.environ.get("REMOTE_URL", None)
-if env_remote_url:
-    remote_url = env_remote_url
 
-if remote_url is not None:
-    if not remote_url.startswith("https://") and not remote_url.startswith(
-        "http://"
-    ):
-        remote_url = "https://" + remote_url
+def _config_or_env(config_key: str, env_key: str, default):
+    value = config.get(config_key, default)
+    if value in (None, ""):
+        value = default
+
+    env_value = os.environ.get(env_key, None)
+    if env_value not in (None, ""):
+        return env_value
+
+    return value
+
+
+remote_url = _config_or_env("remote_url", "REMOTE_URL", "https://furatic.xyz")
+if remote_url and not remote_url.startswith(("https://", "http://")):
+    remote_url = "https://" + remote_url
+if remote_url:
     CSRF_TRUSTED_ORIGINS = [remote_url]
 
 # Furatic is typically deployed behind a reverse proxy / tunnel.
@@ -117,102 +116,66 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
 
-WSGI_APPLICATION = "main.wsgi.application"
+trusted_proxy_ips = config.get("trusted_proxy_ips", ["127.0.0.1", "::1"])
+env_trusted_proxy_ips = os.environ.get("TRUSTED_PROXY_IPS", "").strip()
+if env_trusted_proxy_ips:
+    trusted_proxy_ips = [
+        ip.strip()
+        for ip in env_trusted_proxy_ips.split(",")
+        if ip.strip()
+    ]
+TRUSTED_PROXY_IPS = tuple(
+    str(ip).strip() for ip in trusted_proxy_ips if str(ip).strip()
+)
 
-# Docker changes
-if DOCKER:
-    POSTGRES_HOST = "db"
-    POSTGRES_PORT = "5432"
-    REDIS_HOST = "redis"
-    REDIS_PORT = "6379"
-    MOPIDY_HOST = "mopidy"
-    MOPIDY_PORT = "6680"
-    ICECAST_HOST = "icecast"
-    ICECAST_PORT = "8000"
-    DEFAULT_CACHE_DIR = "/Music/raveberry/"
-    TEST_CACHE_DIR = DEFAULT_CACHE_DIR
-else:
-    POSTGRES_HOST = "127.0.0.1"
-    POSTGRES_PORT = "5432"
-    REDIS_HOST = "127.0.0.1"
-    REDIS_PORT = "6379"
-    MOPIDY_HOST = "localhost"
-    MOPIDY_PORT = "6680"
-    ICECAST_HOST = "localhost"
-    ICECAST_PORT = "8000"
-    DEFAULT_CACHE_DIR = "~/Music/raveberry/"
-    TEST_CACHE_DIR = os.path.join(BASE_DIR, "test_cache/")
+CLIENT_IP_HEADER_CANDIDATES = (
+    "HTTP_X_FORWARDED_FOR",
+    "HTTP_X_REAL_IP",
+    "HTTP_CF_CONNECTING_IP",
+    "HTTP_TRUE_CLIENT_IP",
+    "HTTP_X_CLIENT_IP",
+    "HTTP_FORWARDED",
+)
 
-# Allow these settings to be overwritten with environment variables
-POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "") or POSTGRES_HOST
-POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "") or POSTGRES_PORT
-REDIS_HOST = os.environ.get("REDIS_HOST", "") or REDIS_HOST
-REDIS_PORT = os.environ.get("REDIS_PORT", "") or REDIS_PORT
-MOPIDY_HOST = os.environ.get("MOPIDY_HOST", "") or MOPIDY_HOST
-MOPIDY_PORT = os.environ.get("MOPIDY_PORT", "") or MOPIDY_PORT
-ICECAST_HOST = os.environ.get("ICECAST_HOST", "") or ICECAST_HOST
-ICECAST_PORT = os.environ.get("ICECAST_PORT", "") or ICECAST_PORT
+FURATIC_PUBLIC_URL = remote_url or ""
+FURATIC_DISCORD_INVITE_URL = _config_or_env(
+    "furatic_discord_invite_url",
+    "FURATIC_DISCORD_INVITE_URL",
+    "",
+)
+FURATIC_VRCHAT_GROUP_URL = _config_or_env(
+    "furatic_vrchat_group_url",
+    "FURATIC_VRCHAT_GROUP_URL",
+    "",
+)
+FURATIC_HLS_URL = _config_or_env(
+    "furatic_hls_url",
+    "FURATIC_HLS_URL",
+    "https://aux.furatic.xyz:8888/live/index.m3u8",
+)
+FURATIC_LOGO_SQUARE_URL = _config_or_env(
+    "furatic_logo_square_url",
+    "FURATIC_LOGO_SQUARE_URL",
+    "https://raw.githubusercontent.com/OrangeC7/raveberry/master/FuraticLogo.svg",
+)
+FURATIC_LOGO_WIDE_URL = _config_or_env(
+    "furatic_logo_wide_url",
+    "FURATIC_LOGO_WIDE_URL",
+    "https://raw.githubusercontent.com/OrangeC7/raveberry/master/FuraticLogoWide.svg",
+)
+FURATIC_MOD_USERNAME = _config_or_env(
+    "furatic_mod_username",
+    "FURATIC_MOD_USERNAME",
+    "mod",
+)
+FURATIC_OBS_OUTPUT_DIR = os.path.expanduser(
+    _config_or_env(
+        "furatic_obs_output_dir",
+        "FURATIC_OBS_OUTPUT_DIR",
+        "~/Documents/Raveberry",
+    )
+)
 
-# Database
-if DEBUG:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
-            "OPTIONS": {"timeout": 20},
-        }
-    }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": "raveberry",
-            "USER": "raveberry",
-            "PASSWORD": "raveberry",
-            "HOST": POSTGRES_HOST,
-            "PORT": POSTGRES_PORT,
-        }
-    }
-
-BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
-CELERY_IMPORTS = [
-    "core.lights.worker",
-    "core.musiq.playback",
-    "core.musiq.music_provider",
-    "core.settings.library",
-    "core.settings.sound",
-]
-CELERY_TASK_SERIALIZER = "pickle"
-CELERY_ACCEPT_CONTENT = ["pickle"]
-if TESTING:
-    CELERY_ALWAYS_EAGER = True
-    CELERY_EAGER_PROPAGATES_EXCEPTIONS = True
-
-# Password validation
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
-    },
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
-]
-
-# In order to avoid unexpected migrations when the default value is changed to BigAutoField,
-# set it here explicitly.
-DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
-
-# Internationalization
-LANGUAGE_CODE = "en-us"
-TIME_ZONE = "Europe/Berlin"
-USE_I18N = True
-USE_L10N = True
-USE_TZ = True
-
-# Users
-LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "logged-in"
-LOGOUT_REDIRECT_URL = "base"
 # only preserve user sessions for an hour
 # SESSION_COOKIE_AGE = 3600
 
