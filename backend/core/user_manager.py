@@ -356,11 +356,18 @@ def partymode_enabled() -> bool:
 
 def get_client_ip(request: WSGIRequest):
     """Returns the origin IP of a given request or "" if not possible."""
-    cached_ip = getattr(request, "client_ip", None)
-    if cached_ip is not None:
-        return cached_ip
-    request_ip = _resolve_client_ip(request)
-    return request_ip or ""
+    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+
+    real_ip = request.META.get("HTTP_X_REAL_IP", "")
+    if real_ip:
+        return real_ip.strip()
+
+    request_ip, _ = ipware.get_client_ip(request)
+    if request_ip is None:
+        request_ip = ""
+    return request_ip
 
 
 def try_vote(request_ip: str, queue_key: int, amount: int) -> bool:
