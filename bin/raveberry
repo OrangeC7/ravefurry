@@ -204,7 +204,10 @@ help        show this help and exit""",
         self._ensure_django()
         from core import user_manager  # pylint: disable=import-outside-toplevel
     
-        username, password = user_manager.ensure_builtin_moderator()
+        runtime_password = secrets.token_urlsafe(18)
+        username, password = user_manager.ensure_builtin_moderator(
+            password=runtime_password
+        )
         self._close_django_db_connections()
         return username, password
 
@@ -452,6 +455,7 @@ help        show this help and exit""",
 
             admin_username, admin_password = self._ensure_runtime_admin_credentials()
             moderator_username, moderator_password = self._ensure_runtime_moderator_credentials()
+            additional_env["FURATIC_MOD_PASSWORD"] = moderator_password
 
             self._close_django_db_connections()
 
@@ -477,10 +481,10 @@ help        show this help and exit""",
                 server = subprocess.Popen(
                     [sys.executable, "manage.py", "runserver", "127.0.0.1:8080", "--noreload"],
                     env={
+                        **os.environ,
                         "DJANGO_DEBUG": "1",
                         "PYTHONUNBUFFERED": "1",
                         **additional_env,
-                        **os.environ,
                     },
                     stdin=subprocess.DEVNULL,
                     stdout=subprocess.PIPE,
@@ -506,7 +510,7 @@ help        show this help and exit""",
 
                 subprocess.call(
                     [sys.executable, "manage.py", "runserver", "127.0.0.1:8080"],
-                    env={"DJANGO_DEBUG": "1", **additional_env, **os.environ},
+                    env={**os.environ, "DJANGO_DEBUG": "1", **additional_env},
                 )
 
         except KeyboardInterrupt:
