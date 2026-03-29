@@ -354,11 +354,25 @@ def partymode_enabled() -> bool:
     return len(redis.get("last_requests")) >= storage.get("people_to_party")
 
 
-def get_client_ip(request: WSGIRequest):
-    """Returns the origin IP of a given request or "" if not possible."""
-    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
+def get_client_ip(request: WSGIRequest) -> str:
+    """Return the normalized client IP.
+
+    Trust forwarded headers only when the immediate sender is a trusted proxy.
+    """
+    import logging
+    
+    def get_client_ip(request: WSGIRequest) -> str:
+        logging.warning(
+            "client-ip-debug REMOTE_ADDR=%r XFF=%r X_REAL_IP=%r FORWARDED=%r CF_CONNECTING_IP=%r TRUE_CLIENT_IP=%r X_CLIENT_IP=%r",
+            request.META.get("REMOTE_ADDR"),
+            request.META.get("HTTP_X_FORWARDED_FOR"),
+            request.META.get("HTTP_X_REAL_IP"),
+            request.META.get("HTTP_FORWARDED"),
+            request.META.get("HTTP_CF_CONNECTING_IP"),
+            request.META.get("HTTP_TRUE_CLIENT_IP"),
+            request.META.get("HTTP_X_CLIENT_IP"),
+        )
+    return _resolve_client_ip(request) or ""
 
     real_ip = request.META.get("HTTP_X_REAL_IP", "")
     if real_ip:
