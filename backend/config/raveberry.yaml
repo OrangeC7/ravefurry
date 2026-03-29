@@ -82,6 +82,7 @@ remote_url: https://furatic.xyz
 trusted_proxy_ips:
   - 127.0.0.1
   - ::1
+  - 107.172.80.204
 
 furatic_discord_invite_url: https://discord.gg/Sr4pAFa8E5
 furatic_vrchat_group_url: https://vrchat.com/home/group/grp_abb22096-1394-451f-bb13-0e4f9d63b9fb
