@@ -238,13 +238,22 @@ help        show this help and exit""",
         if not self.django_ready:
             return
         from django.db import connections  # pylint: disable=import-outside-toplevel
-
         connections.close_all()
-
+    
+    def _login_link(self, path: str) -> str:
+        self._ensure_django()
+        from django.conf import settings as conf  # pylint: disable=import-outside-toplevel
+    
+        base = (conf.FURATIC_PUBLIC_URL or "").rstrip("/")
+        self._close_django_db_connections()
+    
+        if base:
+            return f"{base}{path}"
+        return f"http://127.0.0.1:8080{path}"
+    
     def _get_site_mode(self) -> str:
         self._ensure_django()
         from core import site_mode  # pylint: disable=import-outside-toplevel
-
         return site_mode.get_mode()
 
     def _set_site_mode(self, mode: str) -> None:
@@ -440,16 +449,64 @@ help        show this help and exit""",
 
             self._set_site_mode("event")
             self._ensure_runtime_defaults()
+            
             admin_username, admin_password = self._ensure_runtime_admin_credentials()
+            moderator_username, moderator_password = self._ensure_runtime_moderator_credentials()
+            
             self._close_django_db_connections()
-
+            
+            admin_link = self._login_link("/admin/")
+            moderator_link = self._login_link("/moderator/")
+            
             if os.name == "nt":
                 self.console_lock = threading.Lock()
+            
                 self._print_login_block(
                     "ADMIN",
-                    "http://127.0.0.1:8080/admin/",
+                    admin_link,
                     admin_username,
                     admin_password,
+                )
+                self._print_login_block(
+                    "MODERATOR",
+                    moderator_link,
+                    moderator_username,
+                    moderator_password,
+                )
+            
+                server = subprocess.Popen(
+                    [sys.executable, "manage.py", "runserver", "127.0.0.1:8080", "--noreload"],
+                    env={
+                        "DJANGO_DEBUG": "1",
+                        "PYTHONUNBUFFERED": "1",
+                        **additional_env,
+                        **os.environ,
+                    },
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                )
+                time.sleep(0.75)
+                self._handle_windows_controls(server)
+            else:
+                self._print_login_block(
+                    "ADMIN",
+                    admin_link,
+                    admin_username,
+                    admin_password,
+                )
+                self._print_login_block(
+                    "MODERATOR",
+                    moderator_link,
+                    moderator_username,
+                    moderator_password,
+                )
+            
+                subprocess.call(
+                    [sys.executable, "manage.py", "runserver", "127.0.0.1:8080"],
+                    env={"DJANGO_DEBUG": "1", **additional_env, **os.environ},
                 )
 
                 server = subprocess.Popen(
