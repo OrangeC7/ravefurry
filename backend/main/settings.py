@@ -116,6 +116,105 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
 
+WSGI_APPLICATION = "main.wsgi.application"
+
+# Docker changes
+if DOCKER:
+    POSTGRES_HOST = "db"
+    POSTGRES_PORT = "5432"
+    REDIS_HOST = "redis"
+    REDIS_PORT = "6379"
+    MOPIDY_HOST = "mopidy"
+    MOPIDY_PORT = "6680"
+    ICECAST_HOST = "icecast"
+    ICECAST_PORT = "8000"
+    DEFAULT_CACHE_DIR = "/Music/raveberry/"
+    TEST_CACHE_DIR = DEFAULT_CACHE_DIR
+else:
+    POSTGRES_HOST = "127.0.0.1"
+    POSTGRES_PORT = "5432"
+    REDIS_HOST = "127.0.0.1"
+    REDIS_PORT = "6379"
+    MOPIDY_HOST = "localhost"
+    MOPIDY_PORT = "6680"
+    ICECAST_HOST = "localhost"
+    ICECAST_PORT = "8000"
+    DEFAULT_CACHE_DIR = "~/Music/raveberry/"
+    TEST_CACHE_DIR = os.path.join(BASE_DIR, "test_cache/")
+
+# Allow these settings to be overwritten with environment variables
+POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "") or POSTGRES_HOST
+POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "") or POSTGRES_PORT
+REDIS_HOST = os.environ.get("REDIS_HOST", "") or REDIS_HOST
+REDIS_PORT = os.environ.get("REDIS_PORT", "") or REDIS_PORT
+MOPIDY_HOST = os.environ.get("MOPIDY_HOST", "") or MOPIDY_HOST
+MOPIDY_PORT = os.environ.get("MOPIDY_PORT", "") or MOPIDY_PORT
+ICECAST_HOST = os.environ.get("ICECAST_HOST", "") or ICECAST_HOST
+ICECAST_PORT = os.environ.get("ICECAST_PORT", "") or ICECAST_PORT
+
+# Database
+if DEBUG:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
+            "OPTIONS": {"timeout": 20},
+        }
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": "raveberry",
+            "USER": "raveberry",
+            "PASSWORD": "raveberry",
+            "HOST": POSTGRES_HOST,
+            "PORT": POSTGRES_PORT,
+        }
+    }
+
+BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
+CELERY_IMPORTS = [
+    "core.lights.worker",
+    "core.musiq.playback",
+    "core.musiq.music_provider",
+    "core.settings.library",
+    "core.settings.sound",
+]
+CELERY_TASK_SERIALIZER = "pickle"
+CELERY_ACCEPT_CONTENT = ["pickle"]
+if TESTING:
+    CELERY_ALWAYS_EAGER = True
+    CELERY_EAGER_PROPAGATES_EXCEPTIONS = True
+
+# Password validation
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
+# In order to avoid unexpected migrations when the default value is changed to BigAutoField,
+# set it here explicitly.
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+
+# Internationalization
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "Europe/Berlin"
+USE_I18N = True
+USE_L10N = True
+USE_TZ = True
+
+# Users
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "logged-in"
+LOGOUT_REDIRECT_URL = "base"
+# only preserve user sessions for an hour
+# SESSION_COOKIE_AGE = 3600
+
 trusted_proxy_ips = config.get("trusted_proxy_ips", ["127.0.0.1", "::1"])
 env_trusted_proxy_ips = os.environ.get("TRUSTED_PROXY_IPS", "").strip()
 if env_trusted_proxy_ips:
@@ -175,45 +274,6 @@ FURATIC_OBS_OUTPUT_DIR = os.path.expanduser(
         "~/Documents/Raveberry",
     )
 )
-
-# only preserve user sessions for an hour
-# SESSION_COOKIE_AGE = 3600
-
-TRUSTED_PROXY_IPS = tuple(
-    ip.strip()
-    for ip in os.environ.get("TRUSTED_PROXY_IPS", "127.0.0.1,::1").split(",")
-    if ip.strip()
-)
-CLIENT_IP_HEADER_CANDIDATES = (
-    "HTTP_X_FORWARDED_FOR",
-    "HTTP_X_REAL_IP",
-    "HTTP_CF_CONNECTING_IP",
-    "HTTP_TRUE_CLIENT_IP",
-    "HTTP_X_CLIENT_IP",
-    "HTTP_FORWARDED",
-)
-
-FURATIC_PUBLIC_URL = remote_url or ""
-FURATIC_DISCORD_INVITE_URL = os.environ.get("FURATIC_DISCORD_INVITE_URL", "")
-FURATIC_VRCHAT_GROUP_URL = os.environ.get("FURATIC_VRCHAT_GROUP_URL", "")
-FURATIC_HLS_URL = os.environ.get(
-    "FURATIC_HLS_URL",
-    "https://aux.furatic.xyz:8888/live/index.m3u8",
-)
-FURATIC_LOGO_SQUARE_URL = os.environ.get(
-    "FURATIC_LOGO_SQUARE_URL",
-    "https://raw.githubusercontent.com/OrangeC7/raveberry/master/FuraticLogo.svg",
-)
-FURATIC_LOGO_WIDE_URL = os.environ.get(
-    "FURATIC_LOGO_WIDE_URL",
-    "https://raw.githubusercontent.com/OrangeC7/raveberry/master/FuraticLogoWide.svg",
-)
-FURATIC_MOD_USERNAME = os.environ.get("FURATIC_MOD_USERNAME", "mod")
-FURATIC_OBS_OUTPUT_DIR = os.path.expanduser(
-    os.environ.get("FURATIC_OBS_OUTPUT_DIR", "~/Documents/Raveberry")
-)
-# only preserve user sessions for an hour
-# SESSION_COOKIE_AGE = 3600
 
 # Static files (CSS, JavaScript, Images)
 STATIC_FILES = os.path.join(BASE_DIR, "static")
