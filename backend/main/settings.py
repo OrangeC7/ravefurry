@@ -404,6 +404,16 @@ LOGGING = {
             "level": "WARNING",
             "propagate": False,
         },
+        "django.channels": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "django.channels.server": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
     },
     "root": {
         "handlers": ["infofile", "errorfile", "console"]
