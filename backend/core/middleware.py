@@ -1,9 +1,11 @@
 """Runtime-only FURATIC middleware for bans and After Hours gating."""
 from django.http import HttpResponse
 from django.shortcuts import redirect
+import logging
 
 from core import site_mode, user_manager
 
+logger = logging.getLogger(__name__)
 
 _BAN_ALWAYS_ALLOWED_PREFIXES = (
     "/static/",
@@ -36,7 +38,7 @@ _ALLOWED_PREFIXES = (
 
 
 class ClientIpBanMiddleware:
-    """Resolve the real client IP and block banned traffic."""
+    """Resolve the real client IP, log requests, and block banned traffic."""
 
     def __init__(self, get_response):
         self.get_response = get_response
@@ -47,14 +49,24 @@ class ClientIpBanMiddleware:
 
         if request.client_ip and user_manager.is_banned_ip(request.client_ip):
             if path.startswith(_BAN_ALWAYS_ALLOWED_PREFIXES):
-                return self.get_response(request)
-            if path.startswith(_MODERATOR_RECOVERY_PREFIXES) and user_manager.can_moderate(
+                response = self.get_response(request)
+            elif path.startswith(_MODERATOR_RECOVERY_PREFIXES) and user_manager.can_moderate(
                 getattr(request, "user", None)
             ):
-                return self.get_response(request)
-            return HttpResponse("This IP address is banned.", status=403)
+                response = self.get_response(request)
+            else:
+                response = HttpResponse("This IP address is banned.", status=403)
+        else:
+            response = self.get_response(request)
 
-        return self.get_response(request)
+        logger.info(
+            "HTTP %s %s %s [%s]",
+            request.method,
+            request.get_full_path(),
+            response.status_code,
+            request.client_ip or request.META.get("REMOTE_ADDR", ""),
+        )
+        return response
 
 
 class AfterHoursModeMiddleware:
