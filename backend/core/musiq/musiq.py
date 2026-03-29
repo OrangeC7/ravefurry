@@ -207,6 +207,8 @@ def request_music(request: WSGIRequest) -> HttpResponse:
             user_manager.register_song(request, queue_key)
             user_manager.register_vote(request, queue_key, 1)
 
+        update_state()
+
     return JsonResponse({"message": provider.ok_message, "key": queue_key})
 
 
