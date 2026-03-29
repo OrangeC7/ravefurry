@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>FURATIC Moderator Console</title>
+    <title>FURATIC Moderator</title>
     <meta name="theme-color" content="#050816">
     <link rel="icon" href="{{ furatic_logo_url }}" type="image/svg+xml">
     <link rel="shortcut icon" href="{{ furatic_logo_url }}" type="image/svg+xml">
@@ -14,263 +14,128 @@
         --bg-top: #091022;
         --bg-bottom: #03040b;
         --text: #eef4ff;
-        --muted: rgba(238, 244, 255, 0.74);
-        --muted-2: rgba(238, 244, 255, 0.56);
-        --radius: 28px;
-        --cyan: 0, 142, 248;
-        --orange: 222, 104, 0;
-        --green: 74, 227, 0;
-        --magenta: 200, 0, 224;
-        --panel-shadow: 0 30px 120px rgba(0, 0, 0, 0.50);
-        --line: rgba(255, 255, 255, 0.11);
+        --muted: rgba(238, 244, 255, 0.70);
+        --line: rgba(255, 255, 255, 0.12);
         --line-strong: rgba(255, 255, 255, 0.18);
-        --panel: rgba(6, 10, 22, 0.34);
-        --panel-strong: rgba(8, 12, 26, 0.54);
+        --panel: rgba(7, 10, 22, 0.32);
+        --panel-strong: rgba(7, 10, 22, 0.52);
+        --shadow: 0 24px 80px rgba(0, 0, 0, 0.46);
+        --radius: 24px;
       }
 
-      * { box-sizing: border-box; }
+      * {
+        box-sizing: border-box;
+      }
 
-      html, body {
+      html,
+      body {
         width: 100%;
         min-height: 100%;
         margin: 0;
-        background: var(--bg);
+        background:
+          radial-gradient(circle at top, rgba(16, 24, 52, 0.88) 0%, rgba(5, 8, 22, 0.96) 48%, rgba(3, 4, 11, 1) 100%),
+          linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 56%, var(--bg-bottom) 100%);
         color: var(--text);
         font-family: Inter, Roboto, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+        background-attachment: fixed;
       }
 
       body {
-        position: relative;
         overflow-x: hidden;
       }
 
-      #aurora {
-        position: fixed;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        display: block;
-        z-index: 0;
-        background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 56%, var(--bg-bottom) 100%);
-        transform: translateZ(0);
-      }
-
-      .noise,
-      .vignette {
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        z-index: 1;
-      }
-
-      .noise {
-        opacity: 0.045;
-        background-image:
-          radial-gradient(circle at 18% 18%, rgba(255,255,255,0.12) 0, rgba(255,255,255,0) 36%),
-          radial-gradient(circle at 82% 0%, rgba(255,255,255,0.08) 0, rgba(255,255,255,0) 30%);
-        mix-blend-mode: screen;
-      }
-
-      .vignette {
-        background:
-          radial-gradient(circle at 50% -10%, rgba(255,255,255,0.05), transparent 42%),
-          radial-gradient(circle at 50% 50%, transparent 0%, transparent 56%, rgba(0,0,0,0.26) 100%);
-      }
-
       .page {
-        position: relative;
-        z-index: 2;
         min-height: 100svh;
-        padding: clamp(18px, 3vw, 32px);
+        padding: 16px;
       }
 
       .shell {
-        width: min(100%, 1260px);
+        width: min(100%, 1220px);
         margin: 0 auto;
-        display: grid;
-        gap: 18px;
-        opacity: 0;
-        transform: translateY(16px) scale(0.985);
-        transition:
-          opacity 720ms cubic-bezier(0.22, 1, 0.36, 1),
-          transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
-      }
-
-      body.is-ready .shell {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-      }
-
-      .card {
-        position: relative;
-        overflow: hidden;
-        isolation: isolate;
-        border-radius: var(--radius);
-        background: var(--panel);
-        border: 1px solid var(--line);
-        box-shadow: var(--panel-shadow);
-        -webkit-backdrop-filter: blur(26px) saturate(120%);
-        backdrop-filter: blur(26px) saturate(120%);
-      }
-
-      .card::before {
-        content: "";
-        position: absolute;
-        inset: 1px;
-        border-radius: calc(var(--radius) - 1px);
-        background:
-          radial-gradient(circle at top left, rgba(255,255,255,0.10), transparent 28%),
-          linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0));
-        opacity: 0.85;
-        pointer-events: none;
-      }
-
-      .hero {
-        padding: clamp(22px, 3vw, 34px);
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 18px;
-        align-items: center;
-      }
-
-      .hero-copy {
-        display: grid;
-        gap: 18px;
-      }
-
-      .status-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        width: max-content;
-        padding: 10px 14px;
-        border-radius: 999px;
-        font-size: 12px;
-        line-height: 1;
-        font-weight: 800;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: rgba(255,255,255,0.94);
-        background: rgba(255,255,255,0.05);
-        border: 1px solid rgba(255,255,255,0.08);
-      }
-
-      .status-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 999px;
-        background: linear-gradient(135deg, rgba(var(--cyan), 1), rgba(var(--magenta), 1));
-        box-shadow:
-          0 0 0 0 rgba(var(--cyan), 0.34),
-          0 0 18px rgba(var(--cyan), 0.44);
-        animation: pulse 2.4s ease-in-out infinite;
-      }
-
-      .brand-row {
         display: grid;
         gap: 16px;
       }
 
-      .brand-row img {
+      .panel {
+        border-radius: var(--radius);
+        border: 1px solid var(--line);
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        -webkit-backdrop-filter: blur(20px) saturate(120%);
+        backdrop-filter: blur(20px) saturate(120%);
+      }
+
+      .hero {
+        padding: 18px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 14px;
+        align-items: center;
+      }
+
+      .hero img {
         display: block;
-        width: min(100%, 360px);
+        width: min(100%, 340px);
+        max-width: 100%;
         height: auto;
         filter:
-          drop-shadow(0 10px 24px rgba(0,0,0,0.26))
-          drop-shadow(0 0 20px rgba(var(--cyan), 0.12));
-      }
-
-      h1 {
-        margin: 0;
-        font-size: clamp(28px, 4.8vw, 58px);
-        line-height: 0.95;
-        letter-spacing: -0.05em;
-        text-wrap: balance;
-      }
-
-      .hero p {
-        margin: 0;
-        max-width: 62ch;
-        color: var(--muted);
-        font-size: clamp(15px, 2vw, 18px);
-        line-height: 1.65;
-        text-wrap: pretty;
+          drop-shadow(0 12px 30px rgba(0, 0, 0, 0.28))
+          drop-shadow(0 0 16px rgba(0, 142, 248, 0.10));
       }
 
       .hero-actions {
         display: grid;
-        gap: 12px;
+        gap: 10px;
         justify-items: end;
       }
 
-      .action-row,
-      .segmented {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-      }
-
       .button,
-      button,
-      .segmented button {
+      button {
         appearance: none;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        background: rgba(255,255,255,0.05);
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.06);
         color: var(--text);
-        border-radius: 16px;
-        padding: 12px 16px;
+        border-radius: 14px;
+        padding: 11px 14px;
         font: inherit;
         font-weight: 700;
-        cursor: pointer;
         text-decoration: none;
+        cursor: pointer;
         transition:
           transform 180ms ease,
           border-color 180ms ease,
           background 180ms ease,
           box-shadow 180ms ease,
           opacity 180ms ease;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
       }
 
       .button:hover,
-      button:hover,
-      .segmented button:hover {
+      button:hover {
         transform: translateY(-1px);
-        border-color: rgba(255,255,255,0.22);
-        background: rgba(255,255,255,0.08);
+        border-color: var(--line-strong);
+        background: rgba(255, 255, 255, 0.09);
       }
 
       .button:active,
-      button:active,
-      .segmented button:active {
+      button:active {
         transform: translateY(0);
       }
 
-      .button.primary,
-      .segmented button.active {
-        background: linear-gradient(135deg, rgba(var(--cyan), 0.26), rgba(var(--magenta), 0.18));
-        border-color: rgba(var(--cyan), 0.38);
-        box-shadow:
-          0 18px 40px rgba(0,0,0,0.18),
-          inset 0 1px 0 rgba(255,255,255,0.06),
-          0 0 24px rgba(var(--cyan), 0.12);
-      }
-
-      .button.warn,
-      button.warn {
-        background: linear-gradient(135deg, rgba(var(--orange), 0.24), rgba(var(--magenta), 0.16));
-        border-color: rgba(var(--orange), 0.34);
+      .button.subtle {
+        background: rgba(255, 255, 255, 0.05);
       }
 
       .button.good,
       button.good {
-        background: linear-gradient(135deg, rgba(var(--green), 0.24), rgba(var(--cyan), 0.14));
-        border-color: rgba(var(--green), 0.34);
+        background: linear-gradient(135deg, rgba(74, 227, 0, 0.22), rgba(0, 142, 248, 0.14));
+        border-color: rgba(74, 227, 0, 0.34);
       }
 
-      .button.subtle,
-      button.subtle {
-        background: rgba(255,255,255,0.04);
+      .button.warn,
+      button.warn {
+        background: linear-gradient(135deg, rgba(222, 104, 0, 0.24), rgba(200, 0, 224, 0.16));
+        border-color: rgba(222, 104, 0, 0.34);
       }
 
       .button:disabled,
@@ -280,21 +145,41 @@
         transform: none;
       }
 
-      .grid {
+      .segmented {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .segmented button.active {
+        background: linear-gradient(135deg, rgba(0, 142, 248, 0.24), rgba(200, 0, 224, 0.16));
+        border-color: rgba(0, 142, 248, 0.38);
+      }
+
+      .layout {
         display: grid;
-        grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
-        gap: 18px;
+        grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.95fr);
+        gap: 16px;
+        align-items: start;
       }
 
       .stack {
         display: grid;
-        gap: 18px;
+        gap: 16px;
       }
 
       .section {
-        padding: 22px;
+        padding: 18px;
         display: grid;
-        gap: 18px;
+        gap: 14px;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
       }
 
       .section h2 {
@@ -303,137 +188,58 @@
         letter-spacing: -0.03em;
       }
 
-      .section-head {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 12px;
-      }
-
-      .eyebrow {
-        margin: 0 0 6px;
-        font-size: 12px;
-        line-height: 1;
-        text-transform: uppercase;
-        letter-spacing: 0.14em;
-        color: var(--muted-2);
-        font-weight: 800;
-      }
-
-      .section-copy {
-        margin: 0;
-        color: var(--muted);
-        line-height: 1.6;
-      }
-
-      .stat-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 12px;
-      }
-
-      .stat {
-        padding: 16px;
-        border-radius: 20px;
-        border: 1px solid rgba(255,255,255,0.08);
-        background: rgba(255,255,255,0.035);
-        display: grid;
-        gap: 6px;
-      }
-
-      .stat-label {
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: var(--muted-2);
-        font-weight: 800;
-      }
-
-      .stat-value {
-        font-size: clamp(20px, 3vw, 28px);
-        font-weight: 800;
-        letter-spacing: -0.04em;
-      }
-
-      .song-card {
-        display: grid;
-        gap: 14px;
-        padding: 18px;
-        border-radius: 22px;
-        border: 1px solid rgba(255,255,255,0.09);
-        background: rgba(255,255,255,0.04);
-      }
-
-      .song-title {
-        font-size: clamp(20px, 2.4vw, 28px);
-        font-weight: 800;
-        letter-spacing: -0.04em;
-      }
-
-      .song-meta,
-      .helper-grid {
-        display: grid;
-        gap: 10px;
-      }
-
-      .meta-row {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 10px 14px;
-        color: var(--muted);
-      }
-
       .token {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 8px 11px;
+        min-height: 38px;
+        padding: 8px 12px;
         border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.08);
-        background: rgba(255,255,255,0.04);
-        color: rgba(255,255,255,0.92);
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.94);
         font-size: 13px;
       }
 
-      .queue-list,
-      .ban-list {
-        display: grid;
-        gap: 12px;
-      }
-
+      .song-card,
       .queue-item,
       .ban-item {
         display: grid;
-        gap: 14px;
-        padding: 16px 18px;
-        border-radius: 22px;
-        border: 1px solid rgba(255,255,255,0.08);
-        background: rgba(255,255,255,0.04);
+        gap: 12px;
+        padding: 16px;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.045);
       }
 
-      .queue-item {
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: center;
+      .song-title,
+      .queue-title {
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        word-break: break-word;
       }
 
+      .song-meta,
       .queue-copy {
         display: grid;
         gap: 10px;
         min-width: 0;
       }
 
-      .queue-title-row {
+      .meta-row,
+      .queue-title-row,
+      .queue-actions,
+      .ban-actions {
         display: flex;
         flex-wrap: wrap;
+        gap: 10px;
         align-items: center;
-        gap: 10px 12px;
       }
 
-      .queue-title {
-        font-size: 18px;
-        font-weight: 800;
-        letter-spacing: -0.03em;
+      .queue-item {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
       }
 
       .queue-artist {
@@ -442,15 +248,12 @@
 
       .queue-actions,
       .ban-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
         justify-content: flex-end;
       }
 
       .queue-actions button,
       .ban-actions button {
-        min-width: 118px;
+        min-width: 116px;
       }
 
       .manual-ban {
@@ -461,47 +264,48 @@
 
       input[type="text"] {
         width: 100%;
-        border: 1px solid rgba(255,255,255,0.12);
-        background: rgba(255,255,255,0.05);
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.06);
         color: var(--text);
-        border-radius: 16px;
-        padding: 14px 16px;
+        border-radius: 14px;
+        padding: 13px 14px;
         font: inherit;
         outline: none;
         transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
       }
 
       input[type="text"]::placeholder {
-        color: var(--muted-2);
+        color: rgba(238, 244, 255, 0.56);
       }
 
       input[type="text"]:focus {
-        border-color: rgba(var(--cyan), 0.42);
-        background: rgba(255,255,255,0.07);
-        box-shadow: 0 0 0 4px rgba(var(--cyan), 0.12);
+        border-color: rgba(0, 142, 248, 0.42);
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow: 0 0 0 4px rgba(0, 142, 248, 0.12);
       }
 
       .empty-state {
-        padding: 18px;
-        border-radius: 20px;
-        border: 1px dashed rgba(255,255,255,0.16);
+        padding: 16px;
+        border-radius: 16px;
+        border: 1px dashed rgba(255, 255, 255, 0.18);
         color: var(--muted);
-        background: rgba(255,255,255,0.03);
+        background: rgba(255, 255, 255, 0.03);
       }
 
       .toast {
         position: fixed;
-        right: 18px;
-        bottom: 18px;
-        z-index: 5;
-        min-width: min(420px, calc(100vw - 36px));
+        right: 16px;
+        bottom: 16px;
+        z-index: 10;
+        min-width: min(420px, calc(100vw - 32px));
         max-width: 520px;
         padding: 14px 16px;
-        border-radius: 18px;
-        background: rgba(8, 12, 22, 0.88);
-        border: 1px solid rgba(255,255,255,0.12);
-        box-shadow: 0 18px 50px rgba(0,0,0,0.34);
-        backdrop-filter: blur(20px);
+        border-radius: 16px;
+        background: rgba(8, 12, 22, 0.90);
+        border: 1px solid var(--line);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+        -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(16px);
         opacity: 0;
         transform: translateY(14px);
         pointer-events: none;
@@ -514,11 +318,11 @@
       }
 
       .toast.good {
-        border-color: rgba(var(--green), 0.35);
+        border-color: rgba(74, 227, 0, 0.35);
       }
 
       .toast.warn {
-        border-color: rgba(var(--orange), 0.35);
+        border-color: rgba(222, 104, 0, 0.35);
       }
 
       .sr-only {
@@ -533,21 +337,6 @@
         border: 0;
       }
 
-      @keyframes pulse {
-        0%, 100% {
-          transform: scale(1);
-          box-shadow:
-            0 0 0 0 rgba(var(--cyan), 0.34),
-            0 0 18px rgba(var(--cyan), 0.44);
-        }
-        50% {
-          transform: scale(1.08);
-          box-shadow:
-            0 0 0 8px rgba(var(--cyan), 0.00),
-            0 0 22px rgba(var(--cyan), 0.58);
-        }
-      }
-
       @media (max-width: 980px) {
         .hero {
           grid-template-columns: 1fr;
@@ -557,19 +346,19 @@
           justify-items: start;
         }
 
-        .grid {
+        .layout {
           grid-template-columns: 1fr;
         }
       }
 
       @media (max-width: 720px) {
-        .section,
-        .hero {
-          padding: 18px;
+        .page {
+          padding: 10px;
         }
 
-        .stat-grid {
-          grid-template-columns: 1fr;
+        .hero,
+        .section {
+          padding: 14px;
         }
 
         .queue-item {
@@ -585,137 +374,75 @@
           grid-template-columns: 1fr;
         }
 
-        .action-row,
         .segmented {
           width: 100%;
         }
 
-        .action-row .button,
         .segmented button {
-          flex: 1 1 auto;
-          justify-content: center;
-          text-align: center;
+          flex: 1 1 0;
         }
       }
     </style>
   </head>
   <body>
-    <canvas id="aurora" aria-hidden="true"></canvas>
-    <div class="noise" aria-hidden="true"></div>
-    <div class="vignette" aria-hidden="true"></div>
-
     <main class="page">
       <div class="shell">
-        <section class="card hero">
-          <div class="hero-copy">
-            <div class="status-pill"><span class="status-dot"></span> Moderator Console</div>
-            <div class="brand-row">
-              <img src="{{ furatic_logo_wide_url }}" alt="FURATIC logo">
-              <h1>Moderate the queue, mode, and abuse controls from one clean dashboard.</h1>
-              <p>
-                Remove problematic songs, ban abusive client IPs, and switch between event mode and after-hours mode without exposing the full Django admin or playback controls.
-              </p>
-            </div>
-          </div>
+        <section class="panel hero">
+          <img src="{{ furatic_logo_wide_url }}" alt="FURATIC logo">
           <div class="hero-actions">
-            <div class="action-row">
-              <a class="button subtle" href="/" target="_blank" rel="noopener">Open queue</a>
-              {% if is_admin %}
-              <a class="button subtle" href="/admin/">Admin</a>
-              {% endif %}
-              <a class="button subtle" href="/accounts/logout/">Log out</a>
-            </div>
             <div class="segmented" aria-label="Site mode controls">
               <button id="event-mode-button" class="active" type="button">Event mode</button>
               <button id="afterhours-mode-button" type="button">After-hours mode</button>
             </div>
+            <a class="button subtle" href="/accounts/logout/">Log out</a>
           </div>
         </section>
 
-        <div class="grid">
+        <div class="layout">
           <div class="stack">
-            <section class="card section">
+            <section class="panel section">
               <div class="section-head">
-                <div>
-                  <p class="eyebrow">Now playing</p>
-                  <h2>Current song</h2>
-                </div>
+                <h2>Current song</h2>
                 <div class="token" id="current-mode-token">Mode: —</div>
               </div>
               <div id="current-song-card" class="song-card">
                 <div class="song-title">Nothing is currently playing.</div>
-                <p class="section-copy">As soon as playback starts, the current track and requester details will appear here.</p>
               </div>
             </section>
 
-            <section class="card section">
+            <section class="panel section">
               <div class="section-head">
-                <div>
-                  <p class="eyebrow">Moderation queue</p>
-                  <h2>Queued songs</h2>
-                </div>
+                <h2>Queue</h2>
                 <div class="token"><span id="queue-count">0</span>&nbsp;queued</div>
               </div>
-              <div class="stat-grid">
-                <div class="stat">
-                  <div class="stat-label">Mode</div>
-                  <div class="stat-value" id="mode-stat">—</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-label">Queued songs</div>
-                  <div class="stat-value" id="queued-stat">0</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-label">Banned IPs</div>
-                  <div class="stat-value" id="banned-stat">0</div>
-                </div>
-              </div>
-              <div id="queue-list" class="queue-list">
+              <div id="queue-list" class="stack">
                 <div class="empty-state">The queue is currently empty.</div>
               </div>
             </section>
           </div>
 
-          <div class="stack">
-            <section class="card section">
-              <div class="section-head">
-                <div>
-                  <p class="eyebrow">Abuse protection</p>
-                  <h2>Banned IP addresses</h2>
-                </div>
-                <div class="token"><span id="banned-count">0</span>&nbsp;active</div>
-              </div>
-              <p class="section-copy">
-                Banned IPs are stored persistently and are enforced before the public queue, voting, and request routes execute.
-              </p>
-              <label class="sr-only" for="manual-ban-input">Ban IP address</label>
-              <div class="manual-ban">
-                <input id="manual-ban-input" type="text" inputmode="text" spellcheck="false" placeholder="Ban an IP directly, for example 203.0.113.42">
-                <button id="manual-ban-button" class="warn" type="button">Ban IP</button>
-              </div>
-              <div id="ban-list" class="ban-list">
-                <div class="empty-state">No IPs are currently banned.</div>
-              </div>
-            </section>
+          <section class="panel section">
+            <div class="section-head">
+              <h2>Banned IPs</h2>
+              <div class="token"><span id="banned-count">0</span>&nbsp;active</div>
+            </div>
 
-            <section class="card section">
-              <div class="section-head">
-                <div>
-                  <p class="eyebrow">Operator notes</p>
-                  <h2>What moderators can do</h2>
-                </div>
-              </div>
-              <div class="helper-grid">
-                <div class="token">Remove any queued song</div>
-                <div class="token">Ban the requester IP for a song</div>
-                <div class="token">Switch event mode / after-hours mode</div>
-                <div class="token">See which IP requested each item</div>
-              </div>
-              <p class="section-copy">
-                Playback transport, volume, library settings, and the full system configuration remain restricted to admins.
-              </p>
-            </section>
-          </div>
+            <label class="sr-only" for="manual-ban-input">Ban IP address</label>
+            <div class="manual-ban">
+              <input
+                id="manual-ban-input"
+                type="text"
+                inputmode="text"
+                spellcheck="false"
+                placeholder="Ban an IP directly"
+              >
+              <button id="manual-ban-button" class="warn" type="button">Ban IP</button>
+            </div>
+
+            <div id="ban-list" class="stack">
+              <div class="empty-state">No IPs are currently banned.</div>
+            </div>
+          </section>
         </div>
       </div>
     </main>
@@ -735,7 +462,7 @@
           .replace(/&/g, "&amp;")
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;")
-          .replace(/\"/g, "&quot;")
+          .replace(/\\"/g, "&quot;")
           .replace(/'/g, "&#39;");
       }
 
@@ -772,7 +499,6 @@
       function renderMode(mode) {
         const prettyMode = mode === "afterhours" ? "After-hours" : "Event";
         document.getElementById("current-mode-token").textContent = "Mode: " + prettyMode;
-        document.getElementById("mode-stat").textContent = prettyMode;
         document.getElementById("event-mode-button").classList.toggle("active", mode === "event");
         document.getElementById("afterhours-mode-button").classList.toggle("active", mode === "afterhours");
       }
@@ -780,28 +506,34 @@
       function renderCurrentSong(song) {
         const container = document.getElementById("current-song-card");
         if (!song) {
-          container.innerHTML = '<div class="song-title">Nothing is currently playing.</div><p class="section-copy">As soon as playback starts, the current track and requester details will appear here.</p>';
+          container.innerHTML = '<div class="song-title">Nothing is currently playing.</div>';
           return;
         }
 
         const requesterIp = song.requesterIp ? escapeHtml(song.requesterIp) : "Unknown";
         const banDisabled = song.requesterIp ? "" : " disabled";
+
         container.innerHTML = [
           '<div class="song-title">' + escapeHtml(song.title || song.displayName || "Untitled") + '</div>',
           '<div class="song-meta">',
-            '<div class="meta-row"><span class="token">Artist: ' + escapeHtml(song.artist || "Unknown") + '</span><span class="token">Votes: ' + escapeHtml(song.votes) + '</span><span class="token">Length: ' + escapeHtml(song.durationFormatted || "—") + '</span></div>',
-            '<div class="meta-row"><span class="token">Requester IP: ' + requesterIp + '</span></div>',
+            '<div class="meta-row">',
+              '<span class="token">Artist: ' + escapeHtml(song.artist || "Unknown") + '</span>',
+              '<span class="token">Votes: ' + escapeHtml(song.votes) + '</span>',
+              '<span class="token">Length: ' + escapeHtml(song.durationFormatted || "—") + '</span>',
+            '</div>',
+            '<div class="meta-row">',
+              '<span class="token">Requester IP: ' + requesterIp + '</span>',
+            '</div>',
           '</div>',
           '<div class="queue-actions">',
-            '<button class="warn" type="button" data-action="ban-current" data-ip="' + escapeHtml(song.requesterIp || "") + '"' + banDisabled + '>Ban requester IP</button>',
+            '<button class="warn" type="button" data-action="ban-current" data-ip="' + escapeHtml(song.requesterIp || "") + '"' + banDisabled + '>Ban requester</button>',
           '</div>'
-        ].join('');
+        ].join("");
       }
 
       function renderQueue(queue) {
         const list = document.getElementById("queue-list");
         document.getElementById("queue-count").textContent = String(queue.length);
-        document.getElementById("queued-stat").textContent = String(queue.length);
 
         if (!queue.length) {
           list.innerHTML = '<div class="empty-state">The queue is currently empty.</div>';
@@ -826,18 +558,17 @@
                 '</div>',
               '</div>',
               '<div class="queue-actions">',
-                '<button class="warn" type="button" data-action="remove-song" data-key="' + escapeHtml(song.queueKey) + '">Remove song</button>',
-                '<button class="subtle" type="button" data-action="ban-song-ip" data-key="' + escapeHtml(song.queueKey) + '" data-ip="' + escapeHtml(song.requesterIp || "") + '"' + banDisabled + '>Ban requester</button>',
+                '<button class="warn" type="button" data-action="remove-song" data-key="' + escapeHtml(song.queueKey) + '">Remove</button>',
+                '<button class="button subtle" type="button" data-action="ban-song-ip" data-key="' + escapeHtml(song.queueKey) + '" data-ip="' + escapeHtml(song.requesterIp || "") + '"' + banDisabled + '>Ban requester</button>',
               '</div>',
             '</article>'
-          ].join('');
-        }).join('');
+          ].join("");
+        }).join("");
       }
 
       function renderBanList(ips) {
         const list = document.getElementById("ban-list");
         document.getElementById("banned-count").textContent = String(ips.length);
-        document.getElementById("banned-stat").textContent = String(ips.length);
 
         if (!ips.length) {
           list.innerHTML = '<div class="empty-state">No IPs are currently banned.</div>';
@@ -847,15 +578,13 @@
         list.innerHTML = ips.map(function (ip) {
           return [
             '<article class="ban-item">',
-              '<div class="queue-title-row">',
-                '<div class="queue-title">' + escapeHtml(ip) + '</div>',
-              '</div>',
+              '<div class="queue-title">' + escapeHtml(ip) + '</div>',
               '<div class="ban-actions">',
                 '<button class="good" type="button" data-action="unban-ip" data-ip="' + escapeHtml(ip) + '">Unban IP</button>',
               '</div>',
             '</article>'
-          ].join('');
-        }).join('');
+          ].join("");
+        }).join("");
       }
 
       function renderState(data) {
@@ -891,7 +620,7 @@
 
       async function removeSong(key) {
         await postForm(MODERATOR_REMOVE_SONG_URL, { key: key });
-        showToast("Song removed from the queue.", "good");
+        showToast("Song removed.", "good");
         await refreshState();
       }
 
@@ -913,7 +642,10 @@
       async function setMode(mode) {
         const data = await postForm(MODERATOR_SITE_MODE_URL, { mode: mode });
         renderMode(data.mode || mode);
-        showToast(mode === "afterhours" ? "After-hours mode enabled." : "Event mode enabled.", mode === "afterhours" ? "warn" : "good");
+        showToast(
+          mode === "afterhours" ? "After-hours mode enabled." : "Event mode enabled.",
+          mode === "afterhours" ? "warn" : "good"
+        );
         await refreshState();
       }
 
@@ -925,6 +657,7 @@
           if (button.disabled) return;
           button.disabled = true;
           const action = button.getAttribute("data-action");
+
           if (action === "remove-song") {
             await removeSong(button.getAttribute("data-key"));
           } else if (action === "ban-song-ip") {
@@ -975,134 +708,6 @@
           document.getElementById("manual-ban-button").click();
         }
       });
-
-      (function () {
-        const canvas = document.getElementById("aurora");
-        const ctx = canvas.getContext("2d");
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        const prefersReducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        const widthRef = { value: 0 };
-        const heightRef = { value: 0 };
-        let rafId = 0;
-
-        function random(min, max) {
-          return Math.random() * (max - min) + min;
-        }
-
-        function makeOrb(index) {
-          const sizeBase = Math.min(widthRef.value || window.innerWidth, heightRef.value || window.innerHeight || 900);
-          return {
-            radius: random(sizeBase * 0.26, sizeBase * 0.46),
-            color: [
-              [0, 142, 248],
-              [200, 0, 224],
-              [222, 104, 0],
-              [74, 227, 0],
-            ][index % 4],
-            alpha: random(0.12, 0.24),
-            centerX: random(0.16, 0.84),
-            centerY: random(0.18, 0.82),
-            driftX: random(0.07, 0.16),
-            driftY: random(0.07, 0.16),
-            phase: random(0, Math.PI * 2),
-            speed: random(0.00004, 0.00009),
-            wobble: random(0.6, 1.2),
-          };
-        }
-
-        let orbs = Array.from({ length: 5 }, function (_, index) {
-          return makeOrb(index);
-        });
-
-        function resizeCanvas() {
-          const width = window.innerWidth;
-          const height = window.innerHeight;
-          widthRef.value = width;
-          heightRef.value = height;
-          canvas.width = Math.round(width * dpr);
-          canvas.height = Math.round(height * dpr);
-          canvas.style.width = width + "px";
-          canvas.style.height = height + "px";
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          orbs = Array.from({ length: 5 }, function (_, index) {
-            return makeOrb(index);
-          });
-          drawBase();
-        }
-
-        function drawBase() {
-          const width = widthRef.value;
-          const height = heightRef.value;
-          const gradient = ctx.createLinearGradient(0, 0, 0, height);
-          gradient.addColorStop(0, "#091022");
-          gradient.addColorStop(0.55, "#050816");
-          gradient.addColorStop(1, "#03040b");
-          ctx.clearRect(0, 0, width, height);
-          ctx.fillStyle = gradient;
-          ctx.fillRect(0, 0, width, height);
-        }
-
-        function drawOrb(x, y, radius, color, alpha) {
-          const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-          gradient.addColorStop(0, "rgba(" + color[0] + ", " + color[1] + ", " + color[2] + ", " + alpha + ")");
-          gradient.addColorStop(0.34, "rgba(" + color[0] + ", " + color[1] + ", " + color[2] + ", " + alpha * 0.42 + ")");
-          gradient.addColorStop(1, "rgba(" + color[0] + ", " + color[1] + ", " + color[2] + ", 0)");
-          ctx.fillStyle = gradient;
-          ctx.beginPath();
-          ctx.arc(x, y, radius, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
-        function render(timestamp) {
-          drawBase();
-          const width = widthRef.value;
-          const height = heightRef.value;
-          ctx.globalCompositeOperation = "screen";
-
-          orbs.forEach(function (orb, index) {
-            const t = timestamp * orb.speed;
-            const x = width * (orb.centerX + Math.sin(t + orb.phase) * orb.driftX + Math.sin(t * 0.61 + index) * 0.03);
-            const y = height * (orb.centerY + Math.cos(t * orb.wobble + orb.phase) * orb.driftY + Math.sin(t * 0.48 + index) * 0.024);
-            const radius = orb.radius * (0.94 + Math.sin(t * 0.85 + index) * 0.08);
-            drawOrb(x, y, radius, orb.color, orb.alpha);
-          });
-
-          ctx.globalCompositeOperation = "source-over";
-          rafId = window.requestAnimationFrame(render);
-        }
-
-        resizeCanvas();
-
-        if (prefersReducedMotion) {
-          drawBase();
-          ctx.globalCompositeOperation = "screen";
-          drawOrb(widthRef.value * 0.22, heightRef.value * 0.24, Math.min(widthRef.value, heightRef.value) * 0.42, [0, 142, 248], 0.20);
-          drawOrb(widthRef.value * 0.76, heightRef.value * 0.24, Math.min(widthRef.value, heightRef.value) * 0.38, [200, 0, 224], 0.19);
-          drawOrb(widthRef.value * 0.28, heightRef.value * 0.78, Math.min(widthRef.value, heightRef.value) * 0.34, [74, 227, 0], 0.12);
-          drawOrb(widthRef.value * 0.80, heightRef.value * 0.72, Math.min(widthRef.value, heightRef.value) * 0.40, [222, 104, 0], 0.18);
-          ctx.globalCompositeOperation = "source-over";
-        } else {
-          rafId = window.requestAnimationFrame(render);
-        }
-
-        let resizeTimer = 0;
-        window.addEventListener("resize", function () {
-          window.clearTimeout(resizeTimer);
-          resizeTimer = window.setTimeout(function () {
-            resizeCanvas();
-          }, 90);
-        }, { passive: true });
-
-        window.addEventListener("beforeunload", function () {
-          if (rafId) {
-            window.cancelAnimationFrame(rafId);
-          }
-        });
-
-        window.requestAnimationFrame(function () {
-          document.body.classList.add("is-ready");
-        });
-      })();
 
       refreshState();
       window.setInterval(refreshState, 6000);
