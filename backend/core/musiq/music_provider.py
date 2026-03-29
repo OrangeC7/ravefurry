@@ -121,12 +121,22 @@ def enqueue(provider: MusicProvider, session_key: str, archive: bool) -> None:
     provider.enqueue()
 
 
+import logging
+
 @app.task
 def fetch_enqueue(provider: MusicProvider, session_key: str, archive: bool) -> None:
     """Fetch and enqueue the music managed by the given provider."""
-    if not provider.make_available():
-        provider.remove_placeholder()
-        musiq.update_state()
-        return
+    try:
+        if not provider.make_available():
+            provider.remove_placeholder()
+            musiq.update_state()
+            return
 
-    enqueue(provider, session_key, archive)
+        enqueue(provider, session_key, archive)
+    except Exception:
+        logging.exception("fetch_enqueue failed for provider query=%r key=%r", provider.query, provider.key)
+        try:
+            provider.remove_placeholder()
+        except Exception:
+            logging.exception("failed to remove placeholder after fetch_enqueue error")
+        musiq.update_state()
