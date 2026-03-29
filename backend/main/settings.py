@@ -40,6 +40,15 @@ DOCKER = strtobool(os.environ.get("DOCKER", "0"))
 
 ALLOWED_HOSTS = ["*"]
 
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+IPWARE_META_PRECEDENCE_ORDER = (
+    "HTTP_X_FORWARDED_FOR",
+    "HTTP_X_REAL_IP",
+    "REMOTE_ADDR",
+)
+IPWARE_PROXY_COUNT = int(os.environ.get("IPWARE_PROXY_COUNT", "1"))
 
 # Application definition
 
