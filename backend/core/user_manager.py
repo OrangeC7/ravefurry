@@ -109,7 +109,27 @@ def _extract_forwarded_ip(request: WSGIRequest) -> str:
 
 def _trusted_proxy(remote_addr: str) -> bool:
     normalized = _normalize_ip(remote_addr)
-    return bool(normalized and normalized in conf.TRUSTED_PROXY_IPS)
+    if not normalized:
+        return False
+
+    remote_ip = ipaddress.ip_address(normalized)
+
+    for trusted in conf.TRUSTED_PROXY_IPS:
+        trusted = str(trusted).strip()
+        if not trusted:
+            continue
+
+        try:
+            if "/" in trusted:
+                if remote_ip in ipaddress.ip_network(trusted, strict=False):
+                    return True
+            else:
+                if remote_ip == ipaddress.ip_address(trusted):
+                    return True
+        except ValueError:
+            continue
+
+    return False
 
 
 def _resolve_client_ip(request: WSGIRequest) -> str:
@@ -119,11 +139,6 @@ def _resolve_client_ip(request: WSGIRequest) -> str:
         forwarded_ip = _extract_forwarded_ip(request)
         if forwarded_ip:
             return forwarded_ip
-
-    request_ip, _ = ipware.get_client_ip(request)
-    normalized_ip = _normalize_ip(request_ip or "")
-    if normalized_ip:
-        return normalized_ip
 
     return direct_ip
 
@@ -376,34 +391,24 @@ def partymode_enabled() -> bool:
     return len(redis.get("last_requests")) >= storage.get("people_to_party")
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 def get_client_ip(request: WSGIRequest) -> str:
-    """Return the normalized client IP.
-
-    Trust forwarded headers only when the immediate sender is a trusted proxy.
-    """
-    import logging
-    
-    def get_client_ip(request: WSGIRequest) -> str:
-        logging.warning(
-            "client-ip-debug REMOTE_ADDR=%r XFF=%r X_REAL_IP=%r FORWARDED=%r CF_CONNECTING_IP=%r TRUE_CLIENT_IP=%r X_CLIENT_IP=%r",
-            request.META.get("REMOTE_ADDR"),
-            request.META.get("HTTP_X_FORWARDED_FOR"),
-            request.META.get("HTTP_X_REAL_IP"),
-            request.META.get("HTTP_FORWARDED"),
-            request.META.get("HTTP_CF_CONNECTING_IP"),
-            request.META.get("HTTP_TRUE_CLIENT_IP"),
-            request.META.get("HTTP_X_CLIENT_IP"),
-        )
-    return _resolve_client_ip(request) or ""
-
-    real_ip = request.META.get("HTTP_X_REAL_IP", "")
-    if real_ip:
-        return real_ip.strip()
-
-    request_ip, _ = ipware.get_client_ip(request)
-    if request_ip is None:
-        request_ip = ""
-    return request_ip
+    resolved = _resolve_client_ip(request) or ""
+    logger.warning(
+        "client-ip-debug resolved=%r remote=%r xff=%r x_real=%r forwarded=%r cf=%r true_client=%r x_client=%r",
+        resolved,
+        request.META.get("REMOTE_ADDR"),
+        request.META.get("HTTP_X_FORWARDED_FOR"),
+        request.META.get("HTTP_X_REAL_IP"),
+        request.META.get("HTTP_FORWARDED"),
+        request.META.get("HTTP_CF_CONNECTING_IP"),
+        request.META.get("HTTP_TRUE_CLIENT_IP"),
+        request.META.get("HTTP_X_CLIENT_IP"),
+    )
+    return resolved
 
 
 def try_vote(request_ip: str, queue_key: int, amount: int) -> bool:
