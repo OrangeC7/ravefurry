@@ -84,9 +84,17 @@
       }
 
       .hero-actions {
-        display: grid;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+      }
+      
+      .toolbar {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
         gap: 10px;
-        justify-items: end;
+        overflow-x: auto;
       }
 
       .button,
@@ -343,7 +351,7 @@
         }
 
         .hero-actions {
-          justify-items: start;
+          justify-content: flex-start;
         }
 
         .layout {
@@ -390,11 +398,11 @@
         <section class="panel hero">
           <img src="{{ furatic_logo_wide_url }}" alt="FURATIC logo">
           <div class="hero-actions">
-            <div class="segmented" aria-label="Site mode controls">
+            <div class="toolbar" aria-label="Moderator controls">
               <button id="event-mode-button" class="active" type="button">Event mode</button>
               <button id="afterhours-mode-button" type="button">After-hours mode</button>
+              <a class="button subtle" href="/accounts/logout/">Log out</a>
             </div>
-            <a class="button subtle" href="/accounts/logout/">Log out</a>
           </div>
         </section>
 
@@ -456,6 +464,7 @@
       const MODERATOR_BAN_IP_URL = "{{ moderator_ban_ip_url }}";
       const MODERATOR_UNBAN_IP_URL = "{{ moderator_unban_ip_url }}";
       const MODERATOR_SITE_MODE_URL = "{{ moderator_site_mode_url }}";
+      const MODERATOR_SKIP_CURRENT_URL = "{{ moderator_skip_current_url }}";
 
       function escapeHtml(value) {
         return String(value == null ? "" : value)
@@ -526,6 +535,7 @@
             '</div>',
           '</div>',
           '<div class="queue-actions">',
+            '<button class="warn" type="button" data-action="skip-current">Skip current song</button>',
             '<button class="warn" type="button" data-action="ban-current" data-ip="' + escapeHtml(song.requesterIp || "") + '"' + banDisabled + '>Ban requester</button>',
           '</div>'
         ].join("");
@@ -649,6 +659,12 @@
         await refreshState();
       }
 
+      async function skipCurrentSong() {
+        await postForm(MODERATOR_SKIP_CURRENT_URL, {});
+        showToast("Current song skipped.", "good");
+        await refreshState();
+      }
+      
       document.addEventListener("click", async function (event) {
         const button = event.target.closest("button[data-action]");
         if (!button) return;
@@ -660,6 +676,8 @@
 
           if (action === "remove-song") {
             await removeSong(button.getAttribute("data-key"));
+          } else if (action === "skip-current") {
+            await skipCurrentSong();
           } else if (action === "ban-song-ip") {
             await banIp(button.getAttribute("data-ip"), button.getAttribute("data-key"));
           } else if (action === "ban-current") {
