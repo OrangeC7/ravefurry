@@ -276,6 +276,11 @@ FURATIC_MOD_USERNAME = _config_or_env(
     "FURATIC_MOD_USERNAME",
     "mod",
 )
+FURATIC_MOD_PASSWORD = (
+    os.environ.get("FURATIC_MOD_PASSWORD", "").strip()
+    or os.environ.get("MOD_PASSWORD", "").strip()
+    or str(config.get("furatic_mod_password", "") or "").strip()
+)
 FURATIC_OBS_OUTPUT_DIR = os.path.expanduser(
     _config_or_env(
         "furatic_obs_output_dir",
