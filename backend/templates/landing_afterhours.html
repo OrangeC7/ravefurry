@@ -15,118 +15,261 @@
         --bg-top: #091022;
         --bg-bottom: #03040b;
         --text: #eef4ff;
-        --muted: rgba(238, 244, 255, 0.72);
-        --line: rgba(255, 255, 255, 0.12);
-        --panel: rgba(7, 10, 22, 0.30);
-        --shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
-        --radius: 28px;
+        --muted: rgba(238, 244, 255, 0.76);
+        --muted-2: rgba(238, 244, 255, 0.58);
+        --white-line: rgba(255, 255, 255, 0.11);
+        --white-soft: rgba(255, 255, 255, 0.06);
+        --panel: rgba(9, 14, 30, 0.52);
+        --panel-deeper: rgba(7, 10, 22, 0.66);
+        --panel-shadow: 0 28px 120px rgba(0, 0, 0, 0.55);
+        --radius: 30px;
+        --cyan: 0, 142, 248;
+        --orange: 222, 104, 0;
+        --green: 74, 227, 0;
+        --magenta: 200, 0, 224;
       }
 
       * {
         box-sizing: border-box;
       }
 
-      html,
-      body {
+      html, body {
         width: 100%;
         min-height: 100%;
         margin: 0;
-        background:
-          radial-gradient(circle at top, rgba(16, 24, 52, 0.88) 0%, rgba(5, 8, 22, 0.96) 48%, rgba(3, 4, 11, 1) 100%),
-          linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 56%, var(--bg-bottom) 100%);
+        background: var(--bg);
         color: var(--text);
         font-family: Inter, Roboto, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-        background-attachment: fixed;
+      }
+
+      body {
+        position: relative;
+        overflow-x: hidden;
+      }
+
+      #aurora {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        z-index: 0;
+        background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 56%, var(--bg-bottom) 100%);
+        transform: translateZ(0);
+      }
+
+      .noise,
+      .vignette {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .noise {
+        opacity: 0.045;
+        background-image:
+          radial-gradient(circle at 20% 20%, rgba(255,255,255,0.12) 0, rgba(255,255,255,0) 34%),
+          radial-gradient(circle at 80% 0%, rgba(255,255,255,0.08) 0, rgba(255,255,255,0) 28%);
+        mix-blend-mode: screen;
+      }
+
+      .vignette {
+        background:
+          radial-gradient(circle at 50% -10%, rgba(255,255,255,0.06), transparent 42%),
+          radial-gradient(circle at 50% 50%, transparent 0%, transparent 54%, rgba(0,0,0,0.22) 100%);
       }
 
       .page {
+        position: relative;
+        z-index: 2;
         min-height: 100svh;
-        padding: 18px 16px 24px;
         display: grid;
         place-items: center;
+        padding: clamp(18px, 3vw, 40px);
       }
 
       .shell {
-        width: min(100%, 920px);
-        border-radius: var(--radius);
-        border: 1px solid var(--line);
-        background: var(--panel);
-        box-shadow: var(--shadow);
-        -webkit-backdrop-filter: blur(20px) saturate(120%);
-        backdrop-filter: blur(20px) saturate(120%);
-        padding: 28px 22px;
-        display: grid;
-        justify-items: center;
-        gap: 14px;
-        text-align: center;
+        width: min(100%, 960px);
+        opacity: 0;
+        transform: translateY(18px) scale(0.985);
+        transition:
+          opacity 720ms cubic-bezier(0.22, 1, 0.36, 1),
+          transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
       }
 
-      .shell img {
+      body.is-ready .shell {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+
+      .card {
+        position: relative;
+        overflow: hidden;
+        isolation: isolate;
+        border-radius: var(--radius);
+        padding: clamp(24px, 4vw, 44px);
+        background: rgba(6, 10, 22, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        box-shadow: var(--panel-shadow);
+        -webkit-backdrop-filter: blur(28px) saturate(118%);
+        backdrop-filter: blur(28px) saturate(118%);
+      }
+
+      .card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -2;
+        background: rgba(255, 255, 255, 0.018);
+        opacity: 1;
+      }
+
+      .card::after {
+        content: "";
+        position: absolute;
+        inset: 1px;
+        border-radius: calc(var(--radius) - 1px);
+        z-index: -1;
+        background:
+          radial-gradient(circle at top left, rgba(255,255,255,0.10), transparent 30%),
+          linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0));
+        opacity: 0.8;
+        pointer-events: none;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: 128px 1fr;
+        gap: clamp(18px, 3vw, 28px);
+        align-items: center;
+        margin-top: 4px;
+      }
+
+      .logo-wrap {
+        position: relative;
+        width: 128px;
+        height: 128px;
+        display: grid;
+        place-items: center;
+        border-radius: 28px;
+        background:
+          radial-gradient(circle at 30% 20%, rgba(255,255,255,0.09), transparent 42%),
+          linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.05),
+          0 18px 50px rgba(0,0,0,0.30);
+        overflow: hidden;
+        transform: translateZ(0);
+      }
+
+      .logo-wrap::before {
+        content: "";
+        position: absolute;
+        inset: -22%;
+        background:
+          conic-gradient(
+            from 180deg,
+            rgba(var(--cyan), 0.00),
+            rgba(var(--cyan), 0.18),
+            rgba(var(--magenta), 0.18),
+            rgba(var(--orange), 0.18),
+            rgba(var(--green), 0.16),
+            rgba(var(--cyan), 0.00)
+          );
+        filter: blur(20px);
+        opacity: 0.9;
+        animation: haloSpin 18s linear infinite;
+      }
+
+      .logo-wrap::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(135deg, rgba(255,255,255,0.14), transparent 34%),
+          radial-gradient(circle at 70% 85%, rgba(255,255,255,0.06), transparent 36%);
+        pointer-events: none;
+      }
+
+      .logo-wrap img {
+        position: relative;
+        z-index: 1;
+        width: 82px;
+        height: 82px;
         display: block;
-        width: min(100%, 520px);
-        max-width: 100%;
-        height: auto;
-        margin: 0 auto;
         filter:
-          drop-shadow(0 16px 38px rgba(0, 0, 0, 0.30))
-          drop-shadow(0 0 18px rgba(0, 142, 248, 0.12));
+          drop-shadow(0 10px 30px rgba(0,0,0,0.26))
+          drop-shadow(0 0 20px rgba(var(--cyan), 0.18));
+        animation: logoFloat 6.5s ease-in-out infinite;
       }
 
       h1 {
-        margin: 0;
-        font-size: clamp(28px, 5vw, 52px);
-        line-height: 1;
-        letter-spacing: -0.04em;
+        margin: 0 0 12px;
+        font-size: clamp(36px, 6vw, 64px);
+        line-height: 0.95;
+        letter-spacing: -0.05em;
+        text-wrap: balance;
       }
 
-      p {
+      .lead {
         margin: 0;
+        max-width: 58ch;
         color: var(--muted);
-        font-size: clamp(15px, 2vw, 18px);
-        line-height: 1.55;
-        max-width: 44rem;
+        font-size: clamp(16px, 2.15vw, 21px);
+        line-height: 1.62;
+        text-wrap: pretty;
+      }
+
+      .notify-block {
+        margin-top: 22px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .notify-label {
+        color: var(--muted);
+        font-weight: 600;
       }
 
       .notify-row {
         display: flex;
         flex-wrap: wrap;
-        justify-content: center;
-        gap: 10px;
-        margin-top: 4px;
+        gap: 12px;
       }
 
       .notify-button {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-height: 44px;
-        padding: 0 16px;
-        border-radius: 14px;
+        gap: 10px;
+        min-height: 46px;
+        padding: 0 18px;
+        border-radius: 16px;
         color: var(--text);
         text-decoration: none;
-        font: inherit;
         font-weight: 700;
         letter-spacing: 0.01em;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.06);
         box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.04),
-          0 12px 28px rgba(0, 0, 0, 0.22);
+          inset 0 1px 0 rgba(255,255,255,0.04),
+          0 10px 28px rgba(0,0,0,0.24);
         transition:
           transform 180ms ease,
           border-color 180ms ease,
           background 180ms ease,
-          box-shadow 180ms ease,
-          opacity 180ms ease;
+          box-shadow 180ms ease;
       }
 
       .notify-button:hover {
         transform: translateY(-1px);
-        border-color: rgba(255, 255, 255, 0.18);
-        background: rgba(255, 255, 255, 0.09);
+        border-color: rgba(255,255,255,0.18);
+        background: rgba(255,255,255,0.09);
         box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.05),
-          0 16px 34px rgba(0, 0, 0, 0.28);
+          inset 0 1px 0 rgba(255,255,255,0.05),
+          0 16px 34px rgba(0,0,0,0.28);
       }
 
       .notify-button.is-disabled {
@@ -134,54 +277,351 @@
         pointer-events: none;
       }
 
-      @media (max-width: 640px) {
+      @keyframes logoFloat {
+        0%, 100% { transform: translateY(0) scale(1) rotate(0deg); }
+        50% { transform: translateY(-4px) scale(1.015) rotate(-1deg); }
+      }
+
+      @keyframes haloSpin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+
+      @media (max-width: 760px) {
         .page {
-          padding: 14px 10px 18px;
+          align-items: center;
         }
 
+        .hero {
+          grid-template-columns: 1fr;
+        }
+
+        .logo-wrap {
+          width: 104px;
+          height: 104px;
+          border-radius: 24px;
+        }
+
+        .logo-wrap img {
+          width: 68px;
+          height: 68px;
+        }
+      }
+
+      @media (max-width: 520px) {
+        .card {
+          padding: 22px 18px 20px;
+          border-radius: 24px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
         .shell {
-          padding: 22px 16px;
+          transition: none;
         }
 
-        .notify-row {
-          width: 100%;
-        }
-
-        .notify-button {
-          flex: 1 1 0;
+        .logo-wrap::before,
+        .logo-wrap img {
+          animation: none;
         }
       }
     </style>
   </head>
   <body>
+    <canvas id="aurora" aria-hidden="true"></canvas>
+    <div class="noise" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+
     <main class="page">
       <section class="shell" aria-labelledby="title">
-        <img src="{{ furatic_logo_url }}" alt="FURATIC logo" decoding="async">
-        <h1 id="title">FURATIC is offline for now.</h1>
-        <p>This page switches back automatically when the event starts again.</p>
+        <div class="card">
+          <div class="hero">
+            <div class="logo-wrap">
+              <img
+                src="{{ furatic_logo_url }}"
+                alt="FURATIC logo"
+                decoding="async"
+              >
+            </div>
 
-        <div class="notify-row">
-          <a
-            class="notify-button{% if not discord_invite_url %} is-disabled{% endif %}"
-            href="{% if discord_invite_url %}{{ discord_invite_url }}{% else %}#{% endif %}"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Discord invite
-          </a>
-          <a
-            class="notify-button{% if not vrchat_group_url %} is-disabled{% endif %}"
-            href="{% if vrchat_group_url %}{{ vrchat_group_url }}{% else %}#{% endif %}"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            VRChat group
-          </a>
+            <div>
+              <h1 id="title">FURATIC is offline for now.</h1>
+              <p class="lead">
+                Pass The Aux is not active right now.
+                When the event goes live again, this page will switch back automatically.
+              </p>
+
+              <div class="notify-block">
+                <div class="notify-label">Get notified for new events here:</div>
+                <div class="notify-row">
+                  <a
+                    class="notify-button{% if not discord_invite_url %} is-disabled{% endif %}"
+                    href="{% if discord_invite_url %}{{ discord_invite_url }}{% else %}#{% endif %}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Discord invite
+                  </a>
+                  <a
+                    class="notify-button{% if not vrchat_group_url %} is-disabled{% endif %}"
+                    href="{% if vrchat_group_url %}{{ vrchat_group_url }}{% else %}#{% endif %}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    VRChat group
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </main>
 
     <script>
+      (function () {
+        const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const canvas = document.getElementById("aurora");
+        const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
+
+        let width = 0;
+        let height = 0;
+        let dpr = 1;
+        let rafId = 0;
+
+        const orbs = [
+          {
+            color: [0, 142, 248],
+            radius: 396,
+            alpha: 0.24,
+            xMulA: 0.28,
+            xMulB: 0.12,
+            yMulA: 0.23,
+            yMulB: 0.07,
+            speedA: 0.13,
+            speedB: 0.23,
+            speedC: 0.16,
+            speedD: 0.10,
+            phaseA: 0.2,
+            phaseB: 1.7,
+            phaseC: 2.6,
+            phaseD: 0.5
+          },
+          {
+            color: [200, 0, 224],
+            radius: 364,
+            alpha: 0.22,
+            xMulA: 0.24,
+            xMulB: 0.10,
+            yMulA: 0.25,
+            yMulB: 0.07,
+            speedA: 0.10,
+            speedB: 0.20,
+            speedC: 0.15,
+            speedD: 0.10,
+            phaseA: 2.3,
+            phaseB: 0.7,
+            phaseC: 1.2,
+            phaseD: 2.1
+          },
+          {
+            color: [222, 104, 0],
+            radius: 322,
+            alpha: 0.18,
+            xMulA: 0.20,
+            xMulB: 0.13,
+            yMulA: 0.20,
+            yMulB: 0.09,
+            speedA: 0.14,
+            speedB: 0.18,
+            speedC: 0.12,
+            speedD: 0.08,
+            phaseA: 1.0,
+            phaseB: 2.8,
+            phaseC: 0.3,
+            phaseD: 1.6
+          },
+          {
+            color: [74, 227, 0],
+            radius: 250,
+            alpha: 0.09,
+            xMulA: 0.14,
+            xMulB: 0.07,
+            yMulA: 0.15,
+            yMulB: 0.06,
+            speedA: 0.08,
+            speedB: 0.15,
+            speedC: 0.10,
+            speedD: 0.06,
+            phaseA: 3.2,
+            phaseB: 1.1,
+            phaseC: 1.8,
+            phaseD: 2.7
+          },
+          {
+            color: [0, 142, 248],
+            radius: 252,
+            alpha: 0.11,
+            xMulA: 0.12,
+            xMulB: 0.16,
+            yMulA: 0.11,
+            yMulB: 0.08,
+            speedA: 0.17,
+            speedB: 0.12,
+            speedC: 0.11,
+            speedD: 0.14,
+            phaseA: 1.4,
+            phaseB: 2.4,
+            phaseC: 0.9,
+            phaseD: 3.1
+          },
+          {
+            color: [222, 104, 0],
+            radius: 232,
+            alpha: 0.10,
+            xMulA: 0.17,
+            xMulB: 0.09,
+            yMulA: 0.12,
+            yMulB: 0.11,
+            speedA: 0.09,
+            speedB: 0.16,
+            speedC: 0.18,
+            speedD: 0.12,
+            phaseA: 2.9,
+            phaseB: 0.4,
+            phaseC: 2.2,
+            phaseD: 1.3
+          }
+        ];
+
+        function resizeCanvas() {
+          width = window.innerWidth;
+          height = window.innerHeight;
+          dpr = Math.min(window.devicePixelRatio || 1, 1.6);
+
+          canvas.width = Math.round(width * dpr);
+          canvas.height = Math.round(height * dpr);
+          canvas.style.width = width + "px";
+          canvas.style.height = height + "px";
+
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+
+        function drawBase() {
+          const gradient = ctx.createLinearGradient(0, 0, 0, height);
+          gradient.addColorStop(0, "#091022");
+          gradient.addColorStop(0.58, "#050816");
+          gradient.addColorStop(1, "#03040b");
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, width, height);
+
+          const centerGlow = ctx.createRadialGradient(
+            width * 0.5,
+            height * 0.35,
+            0,
+            width * 0.5,
+            height * 0.35,
+            Math.max(width, height) * 0.75
+          );
+          centerGlow.addColorStop(0, "rgba(255,255,255,0.030)");
+          centerGlow.addColorStop(1, "rgba(255,255,255,0)");
+          ctx.fillStyle = centerGlow;
+          ctx.fillRect(0, 0, width, height);
+        }
+
+        function drawOrb(x, y, radius, rgb, alpha) {
+          const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+          gradient.addColorStop(0, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`);
+          gradient.addColorStop(0.38, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha * 0.64})`);
+          gradient.addColorStop(0.72, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha * 0.18})`);
+          gradient.addColorStop(1, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0)`);
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        function render(now) {
+          const t = now * 0.0014;
+          drawBase();
+
+          ctx.globalCompositeOperation = "screen";
+
+          for (const orb of orbs) {
+            const x = width * (
+              0.5
+              + orb.xMulA * Math.sin(t * orb.speedA + orb.phaseA)
+              + orb.xMulB * Math.sin(t * orb.speedB + orb.phaseB)
+            );
+
+            const y = height * (
+              0.5
+              + orb.yMulA * Math.cos(t * orb.speedC + orb.phaseC)
+              + orb.yMulB * Math.sin(t * orb.speedD + orb.phaseD)
+            );
+
+            const radius = orb.radius * (
+              1
+              + 0.09 * Math.sin(t * (orb.speedA + orb.speedC + orb.speedD * 0.5) + orb.phaseB)
+            );
+
+            drawOrb(x, y, radius, orb.color, orb.alpha);
+          }
+
+          ctx.globalCompositeOperation = "source-over";
+
+          const scrim = ctx.createLinearGradient(0, 0, 0, height);
+          scrim.addColorStop(0, "rgba(0,0,0,0.08)");
+          scrim.addColorStop(0.45, "rgba(0,0,0,0.02)");
+          scrim.addColorStop(1, "rgba(0,0,0,0.16)");
+          ctx.fillStyle = scrim;
+          ctx.fillRect(0, 0, width, height);
+
+          rafId = window.requestAnimationFrame(render);
+        }
+
+        resizeCanvas();
+
+        if (prefersReducedMotion) {
+          drawBase();
+          ctx.globalCompositeOperation = "screen";
+          drawOrb(width * 0.24, height * 0.28, 300, [0, 142, 248], 0.18);
+          drawOrb(width * 0.76, height * 0.24, 290, [200, 0, 224], 0.18);
+          drawOrb(width * 0.28, height * 0.78, 250, [74, 227, 0], 0.10);
+          drawOrb(width * 0.78, height * 0.74, 270, [222, 104, 0], 0.14);
+          ctx.globalCompositeOperation = "source-over";
+        } else {
+          rafId = window.requestAnimationFrame(render);
+        }
+
+        let resizeTimer = 0;
+        window.addEventListener("resize", function () {
+          window.clearTimeout(resizeTimer);
+          resizeTimer = window.setTimeout(function () {
+            resizeCanvas();
+            if (prefersReducedMotion) {
+              drawBase();
+              ctx.globalCompositeOperation = "screen";
+              drawOrb(width * 0.24, height * 0.28, 300, [0, 142, 248], 0.18);
+              drawOrb(width * 0.76, height * 0.24, 290, [200, 0, 224], 0.18);
+              drawOrb(width * 0.28, height * 0.78, 250, [74, 227, 0], 0.10);
+              drawOrb(width * 0.78, height * 0.74, 270, [222, 104, 0], 0.14);
+              ctx.globalCompositeOperation = "source-over";
+            }
+          }, 80);
+        }, { passive: true });
+
+        window.addEventListener("beforeunload", function () {
+          if (rafId) {
+            window.cancelAnimationFrame(rafId);
+          }
+        });
+
+        window.requestAnimationFrame(function () {
+          document.body.classList.add("is-ready");
+        });
+      })();
+
       async function pollMode() {
         try {
           const response = await fetch("/api/site-mode/", { cache: "no-store" });
@@ -195,7 +635,7 @@
         }
       }
 
-      setInterval(pollMode, 14000);
+      setInterval(pollMode, 7000);
     </script>
   </body>
 </html>
