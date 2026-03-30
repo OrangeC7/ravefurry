@@ -287,7 +287,29 @@
         display: block;
         width: 22px;
         height: 22px;
+      }
+
+      .icon-button img:not(.vrchat-icon) {
         filter: brightness(0) invert(1);
+      }
+
+      .icon-button img.vrchat-icon {
+        filter: none;
+        opacity: 1;
+      }
+
+      .notify-button.vrchat-button {
+        background: rgba(255,255,255,0.96);
+        border-color: rgba(255,255,255,0.96);
+        box-shadow:
+          0 10px 28px rgba(0,0,0,0.24);
+      }
+
+      .notify-button.vrchat-button:hover {
+        background: #ffffff;
+        border-color: #ffffff;
+        box-shadow:
+          0 16px 34px rgba(0,0,0,0.28);
       }
       
       @keyframes logoFloat {
@@ -383,19 +405,20 @@
                     >
                   </a>
                   <a
-                    class="notify-button icon-button{% if not vrchat_group_url %} is-disabled{% endif %}"
+                    class="notify-button icon-button vrchat-button{% if not vrchat_group_url %} is-disabled{% endif %}"
                     href="{% if vrchat_group_url %}{{ vrchat_group_url }}{% else %}#{% endif %}"
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="VRChat group"
                     title="VRChat group"
                   >
-                    <img
-                      src="https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/vrchat.svg"
-                      alt=""
-                      aria-hidden="true"
-                      decoding="async"
-                    >
+                  <img
+                    class="vrchat-icon"
+                    src="https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/vrchat.svg"
+                    alt=""
+                    aria-hidden="true"
+                    decoding="async"
+                  >
                   </a>
                   <a
                     class="notify-button icon-button"
