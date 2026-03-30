@@ -237,7 +237,15 @@
         display: block;
         width: 22px;
         height: 22px;
+      }
+
+      .icon-button img:not(.vrchat-icon) {
         filter: brightness(0) invert(1);
+      }
+
+      .icon-button img.vrchat-icon {
+        filter: none;
+        opacity: 1;
       }
 
       .tv-button {
@@ -385,7 +393,7 @@
               title="Open TV panel"
             >
               <img
-                src="https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/appletv.svg"
+                src="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/icons/play-btn-fill.svg"
                 alt=""
                 aria-hidden="true"
                 decoding="async"
