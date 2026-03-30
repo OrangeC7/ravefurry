@@ -201,7 +201,7 @@ def request_music(request: WSGIRequest) -> HttpResponse:
                 return HttpResponseBadRequest(
                     "This IP address already has a song in the queue."
                 )
-            user_manager.try_vote(requester_ip, queue_key, 1)
+            user_manager.try_vote(requester_ip, queue_key, 1, record_activity=False)
 
         if storage.get("color_indication") != storage.Privileges.nobody:
             user_manager.register_song(request, queue_key)
