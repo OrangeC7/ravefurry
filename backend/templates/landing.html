@@ -356,7 +356,7 @@
               >
             </a>
             <a
-              class="notify-button icon-button{% if not vrchat_group_url %} is-disabled{% endif %}"
+              class="notify-button icon-button vrchat-button{% if not vrchat_group_url %} is-disabled{% endif %}"
               href="{% if vrchat_group_url %}{{ vrchat_group_url }}{% else %}#{% endif %}"
               target="_blank"
               rel="noopener noreferrer"
@@ -364,6 +364,7 @@
               title="VRChat group"
             >
               <img
+                class="vrchat-icon"
                 src="https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/vrchat.svg"
                 alt=""
                 aria-hidden="true"
