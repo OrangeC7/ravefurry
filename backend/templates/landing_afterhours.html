@@ -294,15 +294,28 @@
         filter: brightness(0) invert(1);
       }
 
-      .icon-button img.vrchat-icon {
-        width: 30px;
-        height: auto;
-        max-height: 30px;
-        padding: 1px;
-        background: #fff;
-        border-radius: 4px;
-        box-sizing: content-box;
+      .vrchat-stack {
+        position: relative;
+        width: 32px;
+        height: 32px;
+        display: block;
+      }
+      
+      .vrchat-stack img.vrchat-icon {
+        position: absolute;
+        inset: 0;
+        width: 32px;
+        height: 32px;
+        max-height: none;
         opacity: 1;
+      }
+      
+      .vrchat-stack .vrchat-icon-back {
+        z-index: 0;
+      }
+      
+      .vrchat-stack .vrchat-icon-front {
+        z-index: 1;
       }
 
       .notify-button.vrchat-button {
@@ -421,13 +434,22 @@
                     aria-label="VRChat group"
                     title="VRChat group"
                   >
-                  <img
-                    class="vrchat-icon"
-                    src="https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/vrchat.svg"
-                    alt=""
-                    aria-hidden="true"
-                    decoding="async"
-                  >
+                  <span class="vrchat-stack" aria-hidden="true">
+                    <img
+                      class="vrchat-icon vrchat-icon-back"
+                      src="https://cdn.simpleicons.org/vrchat/white"
+                      alt=""
+                      aria-hidden="true"
+                      decoding="async"
+                    >
+                    <img
+                      class="vrchat-icon vrchat-icon-front"
+                      src="https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/vrchat.svg"
+                      alt=""
+                      aria-hidden="true"
+                      decoding="async"
+                    >
+                  </span>
                   </a>
                   <a
                     class="notify-button icon-button"
