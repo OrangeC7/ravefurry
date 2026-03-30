@@ -277,6 +277,19 @@
         pointer-events: none;
       }
 
+      .icon-button {
+        min-width: 54px;
+        width: 54px;
+        padding: 0;
+      }
+
+      .icon-button img {
+        display: block;
+        width: 22px;
+        height: 22px;
+        filter: brightness(0) invert(1);
+      }
+      
       @keyframes logoFloat {
         0%, 100% { transform: translateY(0) scale(1) rotate(0deg); }
         50% { transform: translateY(-4px) scale(1.015) rotate(-1deg); }
@@ -355,20 +368,49 @@
                 <div class="notify-label">Get notified for new events here:</div>
                 <div class="notify-row">
                   <a
-                    class="notify-button{% if not discord_invite_url %} is-disabled{% endif %}"
+                    class="notify-button icon-button{% if not discord_invite_url %} is-disabled{% endif %}"
                     href="{% if discord_invite_url %}{{ discord_invite_url }}{% else %}#{% endif %}"
                     target="_blank"
                     rel="noopener noreferrer"
+                    aria-label="Discord invite"
+                    title="Discord invite"
                   >
-                    Discord invite
+                    <img
+                      src="https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/discord.svg"
+                      alt=""
+                      aria-hidden="true"
+                      decoding="async"
+                    >
                   </a>
                   <a
-                    class="notify-button{% if not vrchat_group_url %} is-disabled{% endif %}"
+                    class="notify-button icon-button{% if not vrchat_group_url %} is-disabled{% endif %}"
                     href="{% if vrchat_group_url %}{{ vrchat_group_url }}{% else %}#{% endif %}"
                     target="_blank"
                     rel="noopener noreferrer"
+                    aria-label="VRChat group"
+                    title="VRChat group"
                   >
-                    VRChat group
+                    <img
+                      src="https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/vrchat.svg"
+                      alt=""
+                      aria-hidden="true"
+                      decoding="async"
+                    >
+                  </a>
+                  <a
+                    class="notify-button icon-button"
+                    href="https://bsky.app/profile/furatic.xyz"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Bluesky"
+                    title="Bluesky"
+                  >
+                    <img
+                      src="https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/bluesky.svg"
+                      alt=""
+                      aria-hidden="true"
+                      decoding="async"
+                    >
                   </a>
                 </div>
               </div>
