@@ -13,7 +13,7 @@ DEFAULT_CONFIG_PATH="$HOME/raveberry.yaml"
 DEFAULT_INSTALL_DIR="/opt/raveberry/"
 DEFAULT_HOSTNAME="127.0.0.1"
 DEFAULT_PORT="8080"
-DEFAULT_RAVEBERRY_REPO="https://github.com/OrangeC7/raveberry.git"
+DEFAULT_RAVEBERRY_REPO="https://github.com/OrangeC7/ravefurry.git"
 DEFAULT_RAVEBERRY_REF="master"
 
 DEFAULT_YOUTUBE="true"
