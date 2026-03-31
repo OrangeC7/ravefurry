@@ -14,7 +14,7 @@ set "DEFAULT_CONFIG_PATH=%USERPROFILE%\raveberry.yaml"
 set "DEFAULT_INSTALL_DIR=C:\opt\raveberry\"
 set "DEFAULT_HOSTNAME=127.0.0.1"
 set "DEFAULT_PORT=8080"
-set "DEFAULT_RAVEBERRY_REPO=https://github.com/OrangeC7/raveberry.git"
+set "DEFAULT_RAVEBERRY_REPO=https://github.com/OrangeC7/ravefurry.git"
 set "DEFAULT_RAVEBERRY_REF=master"
 
 set "DEFAULT_YOUTUBE=true"
