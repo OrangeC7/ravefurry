@@ -36,7 +36,7 @@ def _ordered_confirmed_queue():
         return confirmed.annotate(
             effective_votes=Case(
                 When(votes__gte=1, then=F("votes")),
-                default=Value(0),
+                default=Value(1),
                 output_field=IntegerField(),
             )
         ).order_by("-effective_votes", "index")
