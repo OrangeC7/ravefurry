@@ -764,7 +764,6 @@
                 isBanned ? '<span class="token">Banned</span>' : '',
               '</div>',
               '<div class="ip-title">' + escapeHtml(item.ip) + '</div>',
-              '<div class="ip-subline">Seen ' + item.count + ' action' + (item.count === 1 ? '' : 's') + ' in the current audit log.</div>',
               '<div class="ip-stats">',
                 '<span class="token">Total actions: ' + item.count + '</span>',
                 '<span class="token">Latest: ' + formatAuditTime(item.latestTs) + '</span>',
