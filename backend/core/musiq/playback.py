@@ -11,6 +11,7 @@ from typing import Optional, Tuple
 
 from django.conf import settings as conf
 from django.db import connection, transaction
+from django.db.models import Case, F, IntegerField, Value, When
 from django.utils import timezone
 
 from core import models, redis, user_manager
@@ -25,6 +26,21 @@ queue_changed = redis.Event("queue_changed")
 buzzer_stopped = redis.Event("buzzer_stopped")
 
 queue = models.QueuedSong.objects
+
+def _ordered_confirmed_queue():
+    confirmed = queue.confirmed()
+    if storage.get("interactivity") in [
+        storage.Interactivity.upvotes_only,
+        storage.Interactivity.full_voting,
+    ]:
+        return confirmed.annotate(
+            effective_votes=Case(
+                When(votes__gte=1, then=F("votes")),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+        ).order_by("-effective_votes", "index")
+    return confirmed.order_by("index")
 
 def request_operator_command(command: str) -> None:
     """Send an operator command from the launcher process to the playback loop."""
@@ -207,7 +223,7 @@ class Playback:
             storage.Interactivity.full_voting,
         ]:
             with transaction.atomic():
-                song = queue.confirmed().order_by("-votes", "index").first()
+                song = _ordered_confirmed_queue().first()
                 if song is None:
                     queue_changed.wait()
                     queue_changed.clear()
