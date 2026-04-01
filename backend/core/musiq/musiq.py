@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
 from django.conf import settings as conf
 from django.core.handlers.wsgi import WSGIRequest
 from django.forms.models import model_to_dict
+from django.db.models import Case, F, IntegerField, Value, When
 from django.http import HttpResponseBadRequest
 from django.http.response import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
@@ -29,6 +30,26 @@ from core.state_handler import send_state
 from core.settings.storage import PlatformEnabled, PlatformSuggestions
 
 queue = QueuedSong.objects
+
+def ordered_queue_queryset():
+    """Return the queue in the same effective order used for playback.
+
+    Votes >= 1 keep their relative priority.
+    Votes < 1 are all treated equally for ordering.
+    """
+    all_songs = queue.all()
+    if storage.get("interactivity") in [
+        storage.Interactivity.upvotes_only,
+        storage.Interactivity.full_voting,
+    ]:
+        return all_songs.annotate(
+            effective_votes=Case(
+                When(votes__gte=1, then=F("votes")),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+        ).order_by("-effective_votes", "index")
+    return all_songs.order_by("index")
 
 if TYPE_CHECKING:
     from core.musiq.song_utils import Metadata
@@ -344,13 +365,7 @@ def state_dict() -> Dict[str, Any]:
 
     song_queue = []
     total_time = 0
-    all_songs = queue.all()
-    if storage.get("interactivity") in [
-        storage.Interactivity.upvotes_only,
-        storage.Interactivity.full_voting,
-    ]:
-        all_songs = all_songs.order_by("-votes", "index")
-    for song in all_songs:
+    for song in ordered_queue_queryset():
         song_dict = model_to_dict(song)
         song_dict = util.camelize(song_dict)
         song_dict["durationFormatted"] = song_utils.format_seconds(
