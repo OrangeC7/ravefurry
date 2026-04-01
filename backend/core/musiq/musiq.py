@@ -19,7 +19,7 @@ from django.utils import timezone
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.csrf import csrf_exempt
 
-from core import base, obs_export, redis, site_mode, user_manager, util
+from core import audit_log, base, obs_export, redis, site_mode, user_manager, util
 from core.models import CurrentSong, QueuedSong
 from core.musiq import controller, playback, song_utils
 from core.musiq.music_provider import MusicProvider, ProviderError, WrongUrlError
@@ -228,6 +228,13 @@ def request_music(request: WSGIRequest) -> HttpResponse:
             user_manager.register_song(request, queue_key)
             user_manager.register_vote(request, queue_key, 1)
 
+        audit_log.append(
+            "user_add_song",
+            request=request,
+            target="queue",
+            song_key=queue_key,
+            song_title=queued_song.displayname(),
+        )
         update_state()
 
     return JsonResponse({"message": provider.ok_message, "key": queue_key})
