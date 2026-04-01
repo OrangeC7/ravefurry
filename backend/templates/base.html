@@ -34,7 +34,45 @@
 			{% endblock %}
 		</script>
 		<script src="{% static "bundle.js" %}"></script>
+		<script>
+		  $(function() {
+		    const currentSongTitle = document.getElementById('current-song-title');
+		    const currentSongVoteUp = document.getElementById('current-song-vote-up');
+		    const currentSongVoteDown = document.getElementById('current-song-vote-down');
+		
+		    if (!currentSongTitle || !currentSongVoteUp || !currentSongVoteDown) {
+		      return;
+		    }
+		
+		    let lastSongTitle = currentSongTitle.textContent.trim();
+		
+		    function resetCurrentSongVoteVisualState() {
+		      currentSongVoteUp.classList.remove('pressed');
+		      currentSongVoteDown.classList.remove('pressed');
+		    }
+		
+		    const observer = new MutationObserver(function() {
+		      const nextSongTitle = currentSongTitle.textContent.trim();
+		
+		      if (!nextSongTitle || nextSongTitle === lastSongTitle) {
+		        return;
+		      }
+		
+		      lastSongTitle = nextSongTitle;
+		      resetCurrentSongVoteVisualState();
+		    });
+		
+		    observer.observe(currentSongTitle, {
+		      childList: true,
+		      subtree: true,
+		      characterData: true
+		    });
+		  });
+		</script>
 
+<title>Raveberry</title>
+<link id="favicon" rel="shortcut icon" href="{% static "raveberry.svg" %}"/>
+		
 		<title>Raveberry</title>
 		<link id="favicon" rel="shortcut icon" href="{% static "raveberry.svg" %}"/>
 	</head>
