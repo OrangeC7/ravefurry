@@ -384,5 +384,12 @@ def vote(request: WSGIRequest) -> HttpResponse:
             playback.handle_autoplay(removed.external_url or removed.title)
         else:
             playback.handle_autoplay()
+    audit_log.append(
+        "user_vote",
+        request=request,
+        target="current-song" if models.CurrentSong.objects.filter(queue_key=key).exists() else "queue",
+        song_key=key,
+        metadata={"amount": amount},
+    )
     musiq.update_state()
     return HttpResponse()
