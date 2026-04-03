@@ -102,6 +102,10 @@ class Youtube:
             "writethumbnail": True,
             "default_search": "auto",
             "postprocessors": postprocessors,
+            "socket_timeout": 8,
+            "retries": 1,
+            "extractor_retries": 1,
+            "fragment_retries": 1,
             "logger": YoutubeDLLogger(),
         }
 
