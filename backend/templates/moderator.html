@@ -797,6 +797,9 @@
         const amount = entry.metadata && typeof entry.metadata.amount !== "undefined"
           ? Number(entry.metadata.amount)
           : null;
+        const reason = entry.metadata && entry.metadata.reason
+          ? String(entry.metadata.reason)
+          : "";
       
         if (action === "user_add_song") return "Added song" + (songTitle ? ": " + songTitle : "");
         if (action === "user_remove_own_song") return "Removed own song" + (songTitle ? ": " + songTitle : "");
@@ -812,6 +815,14 @@
         if (action === "moderator_ban_ip") return "Moderator banned IP";
         if (action === "moderator_unban_ip") return "Moderator unbanned IP";
         if (action === "moderator_set_site_mode") return "Moderator changed site mode";
+        if (action === "moderator_add_blocklist") return "Moderator added a blocklist";
+      
+        if (action === "ip_screen_block") {
+          if (reason === "blocklist") return "Blocked IP from connecting due to blocklist";
+          if (reason === "api") return "Blocked IP from connecting due to VPN/proxy detection";
+          return "Blocked IP from connecting";
+        }
+      
         if (action === "page_refresh") return "Refreshed page";
         return escapeHtml(action);
       }
@@ -828,7 +839,7 @@
         const bannedSet = new Set((Array.isArray(bannedIps) ? bannedIps : []).map(function (ip) {
           return String(ip);
         }));
-
+      
         document.getElementById("audit-count").textContent = String(safeEntries.length);
       
         if (!safeEntries.length) {
@@ -837,8 +848,10 @@
         }
       
         list.innerHTML = safeEntries.map(function (entry) {
-          const actor = escapeHtml(entry.actor || "unknown");
-          const actorRole = escapeHtml(entry.actorRole || "user");
+          const rawActor = String(entry.actor || "unknown").trim();
+          const rawActorRole = String(entry.actorRole || "user").trim().toLowerCase();
+          const actor = escapeHtml(rawActor || "unknown");
+          const actorRole = escapeHtml(rawActorRole || "user");
           const target = entry.target ? escapeHtml(entry.target) : "";
           const rawIp = entry.ip ? String(entry.ip).trim() : "";
           const ipDisplay = rawIp ? escapeHtml(rawIp) : "—";
@@ -847,7 +860,15 @@
           const isBanned = rawIp ? bannedSet.has(rawIp) : false;
           const identityClass = identity ? " ip-identity" : "";
           const identityStyle = identity ? ' style="' + getIpIdentityStyle(rawIp) + '"' : "";
-          const buttonHtml = rawIp
+      
+          const isBuiltInModeratorEntry =
+            rawActorRole === "moderator" &&
+            rawActor.toLowerCase() === "mod";
+      
+          const showActorBubble = !isBuiltInModeratorEntry;
+          const showIpActionButton = rawIp && rawActorRole !== "moderator";
+      
+          const buttonHtml = showIpActionButton
             ? '<button class="' + (isBanned ? 'good' : 'warn') + '" type="button" data-action="' + (isBanned ? 'unban-listed-ip' : 'ban-listed-ip') + '" data-ip="' + escapeHtml(rawIp) + '">' + (isBanned ? 'Unban IP' : 'Ban IP') + '</button>'
             : "";
       
@@ -855,7 +876,7 @@
             '<article class="audit-item' + identityClass + '"' + identityStyle + '>',
               '<div class="audit-topline">',
                 identity ? '<span class="token ip-token">' + escapeHtml(identity.label) + '</span>' : '',
-                '<span class="token">' + actor + '</span>',
+                showActorBubble ? '<span class="token">' + actor + '</span>' : '',
                 '<span class="token">' + actorRole + '</span>',
                 target ? '<span class="token">Target: ' + target + '</span>' : '',
                 isBanned ? '<span class="token">Banned</span>' : '',
