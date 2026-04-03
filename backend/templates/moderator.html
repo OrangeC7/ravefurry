@@ -405,6 +405,57 @@
       .ip-actions button {
         min-width: 116px;
       }
+
+      select,
+      input[type="file"] {
+        width: 100%;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+        border-radius: 14px;
+        padding: 13px 14px;
+        font: inherit;
+        outline: none;
+        transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+      }
+
+      select:focus,
+      input[type="file"]:focus {
+        border-color: rgba(0, 142, 248, 0.42);
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow: 0 0 0 4px rgba(0, 142, 248, 0.12);
+      }
+
+      .blocklist-form,
+      .blocklist-item,
+      .field-grid,
+      .field-label {
+        display: grid;
+        gap: 10px;
+      }
+
+      .field-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .field-label {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .helper-text {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .blocklist-item {
+        padding: 16px;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.045);
+      }
       
       @media (max-width: 980px) {
         .hero {
@@ -450,6 +501,9 @@
 
         .segmented button {
           flex: 1 1 0;
+        }
+        .field-grid {
+          grid-template-columns: 1fr;
         }
       }
     </style>
@@ -535,6 +589,82 @@
                 <div class="empty-state">No IPs are currently banned.</div>
               </div>
             </section>
+              <section class="panel section">
+              <div class="section-head">
+                <h2>Blocklist management</h2>
+                <div class="token"><span id="blocklist-count">0</span>&nbsp;installed</div>
+              </div>
+
+              <div id="ip-intel-status" class="token">GetIPIntel: —</div>
+
+              <div class="blocklist-form">
+                <p class="helper-text">
+                  Add either an uploaded text file or a raw text URL. Auto mode understands
+                  single IPv4 addresses, CIDR ranges, and explicit start to end ranges.
+                </p>
+
+                <div class="field-grid">
+                  <label class="field-label" for="blocklist-name-input">
+                    Display name
+                    <input
+                      id="blocklist-name-input"
+                      type="text"
+                      inputmode="text"
+                      spellcheck="false"
+                      placeholder="Example: Datacenter list"
+                    >
+                  </label>
+
+                  <label class="field-label" for="blocklist-url-input">
+                    Optional raw text URL
+                    <input
+                      id="blocklist-url-input"
+                      type="text"
+                      inputmode="url"
+                      spellcheck="false"
+                      placeholder="https://example.com/list.txt"
+                    >
+                  </label>
+                </div>
+
+                <div class="field-grid">
+                  <label class="field-label" for="blocklist-file-input">
+                    Upload text file
+                    <input id="blocklist-file-input" type="file" accept=".txt,text/plain">
+                  </label>
+
+                  <label class="field-label" for="blocklist-separator-select">
+                    Separator format
+                    <select id="blocklist-separator-select">
+                      <option value="auto" selected>Auto detect</option>
+                      <option value="newline">Newline separated</option>
+                      <option value="comma">Comma separated</option>
+                      <option value="whitespace">Whitespace separated</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div class="field-grid">
+                  <label class="field-label" for="blocklist-entry-type-select">
+                    Entry type
+                    <select id="blocklist-entry-type-select">
+                      <option value="auto" selected>Auto detect</option>
+                      <option value="single">Single IPv4 addresses</option>
+                      <option value="cidr">CIDR ranges</option>
+                      <option value="range">Start-end ranges</option>
+                    </select>
+                  </label>
+
+                  <div></div>
+                </div>
+
+                <button id="add-blocklist-button" class="good" type="button">Add blocklist</button>
+              </div>
+
+              <div id="blocklist-list" class="stack">
+                <div class="empty-state">No blocklist files are installed.</div>
+              </div>
+            </section>
           </div>
         </div>
       </div>
@@ -550,6 +680,9 @@
       const MODERATOR_UNBAN_IP_URL = "{{ moderator_unban_ip_url }}";
       const MODERATOR_SITE_MODE_URL = "{{ moderator_site_mode_url }}";
       const MODERATOR_SKIP_CURRENT_URL = "{{ moderator_skip_current_url }}";
+      const MODERATOR_ADD_BLOCKLIST_URL = "{{ moderator_add_blocklist_url }}";
+      const MODERATOR_RENAME_BLOCKLIST_URL = "{{ moderator_rename_blocklist_url }}";
+      const MODERATOR_REMOVE_BLOCKLIST_URL = "{{ moderator_remove_blocklist_url }}";
 
       function escapeHtml(value) {
         return String(value == null ? "" : value)
@@ -776,6 +909,144 @@
           ].join("");
         }).join("");
       }
+
+      function renderIpIntelStatus(ipIntel) {
+        const token = document.getElementById("ip-intel-status");
+        if (!ipIntel || !ipIntel.enabled) {
+          if (ipIntel && !ipIntel.contactConfigured) {
+            token.textContent = "GetIPIntel disabled: set FURATIC_IP_INTEL_CONTACT_EMAIL first.";
+          } else {
+            token.textContent = "GetIPIntel disabled.";
+          }
+          return;
+        }
+
+        token.textContent =
+          "GetIPIntel: " +
+          String(ipIntel.dailyUsed || 0) +
+          "/" +
+          String(ipIntel.dailyLimit || 0) +
+          " today • " +
+          String(ipIntel.minuteUsed || 0) +
+          "/" +
+          String(ipIntel.minuteLimit || 0) +
+          " this minute • flags=" +
+          String(ipIntel.flags || "m");
+      }
+
+      function renderBlocklists(blocklists) {
+        const list = document.getElementById("blocklist-list");
+        const safeItems = Array.isArray(blocklists) ? blocklists : [];
+        document.getElementById("blocklist-count").textContent = String(safeItems.length);
+
+        if (!safeItems.length) {
+          list.innerHTML = '<div class="empty-state">No blocklist files are installed.</div>';
+          return;
+        }
+
+        list.innerHTML = safeItems.map(function (item) {
+          return [
+            '<article class="blocklist-item">',
+              '<div class="queue-title">' + escapeHtml(item.name || "Unnamed blocklist") + '</div>',
+              '<div class="meta-row">',
+                '<span class="token">Entries: ' + escapeHtml(item.entryCount || 0) + '</span>',
+                '<span class="token">Separator: ' + escapeHtml(item.separator || "auto") + '</span>',
+                '<span class="token">Type: ' + escapeHtml(item.entryType || "auto") + '</span>',
+                '<span class="token">Source: ' + escapeHtml(item.sourceKind || "upload") + '</span>',
+              '</div>',
+              (item.invalidTokens ? '<div class="helper-text">Ignored invalid entries: ' + escapeHtml(item.invalidTokens) + '</div>' : ''),
+              '<div class="ban-actions">',
+                '<button class="button subtle" type="button" data-action="rename-blocklist" data-id="' + escapeHtml(item.id) + '" data-name="' + escapeHtml(item.name || "") + '">Rename</button>',
+                '<button class="warn" type="button" data-action="remove-blocklist" data-id="' + escapeHtml(item.id) + '" data-name="' + escapeHtml(item.name || "") + '">Remove</button>',
+              '</div>',
+            '</article>'
+          ].join("");
+        }).join("");
+      }
+
+      async function postMultipart(url, formData) {
+        const response = await fetch(url, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "X-CSRFToken": CSRF_TOKEN,
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          body: formData
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || "Request failed");
+        }
+
+        return response.json();
+      }
+
+      async function addBlocklist() {
+        const nameInput = document.getElementById("blocklist-name-input");
+        const urlInput = document.getElementById("blocklist-url-input");
+        const fileInput = document.getElementById("blocklist-file-input");
+        const separatorSelect = document.getElementById("blocklist-separator-select");
+        const entryTypeSelect = document.getElementById("blocklist-entry-type-select");
+
+        const name = nameInput.value.trim();
+        const sourceUrl = urlInput.value.trim();
+        const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+
+        if (!file && !sourceUrl) {
+          showToast("Choose a file or enter a raw text URL.", "warn");
+          return;
+        }
+
+        if (file && sourceUrl) {
+          showToast("Use either a file upload or a URL, not both.", "warn");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("name", name);
+        formData.append("separator", separatorSelect.value);
+        formData.append("entry_type", entryTypeSelect.value);
+        if (sourceUrl) formData.append("source_url", sourceUrl);
+        if (file) formData.append("file", file);
+
+        const data = await postMultipart(MODERATOR_ADD_BLOCKLIST_URL, formData);
+        renderState(data);
+        nameInput.value = "";
+        urlInput.value = "";
+        fileInput.value = "";
+        separatorSelect.value = "auto";
+        entryTypeSelect.value = "auto";
+        showToast("Blocklist added.", "good");
+      }
+
+      async function renameBlocklist(id, currentName) {
+        const nextName = window.prompt("Rename blocklist:", currentName || "");
+        if (nextName == null) return;
+        const trimmed = nextName.trim();
+        if (!trimmed) {
+          showToast("Blocklist name cannot be empty.", "warn");
+          return;
+        }
+        const data = await postForm(MODERATOR_RENAME_BLOCKLIST_URL, {
+          id: id,
+          name: trimmed
+        });
+        renderState(data);
+        showToast("Blocklist renamed.", "good");
+      }
+
+      async function removeBlocklist(id, currentName) {
+        const confirmed = window.confirm(
+          'Remove blocklist "' + String(currentName || "Unnamed blocklist") + '"?'
+        );
+        if (!confirmed) return;
+
+        const data = await postForm(MODERATOR_REMOVE_BLOCKLIST_URL, { id: id });
+        renderState(data);
+        showToast("Blocklist removed.", "good");
+      }
       
       async function postForm(url, data) {
         const body = new URLSearchParams(data);
@@ -893,6 +1164,7 @@
         const queue = Array.isArray(data.queue) ? data.queue : [];
         const bannedIps = Array.isArray(data.bannedIps) ? data.bannedIps : [];
         const auditLog = Array.isArray(data.auditLog) ? data.auditLog : [];
+        const blocklists = Array.isArray(data.blocklists) ? data.blocklists : [];
 
         renderMode(data.mode || "event");
         renderCurrentSong(data.currentSong || null);
@@ -900,6 +1172,8 @@
         renderConnectedIps(auditLog, bannedIps);
         renderBanList(bannedIps);
         renderAuditLog(auditLog, bannedIps);
+        renderIpIntelStatus(data.ipIntel || null);
+        renderBlocklists(blocklists);
       }
 
       let refreshInFlight = false;
@@ -987,6 +1261,16 @@
           } else if (action === "unban-ip") {
             await unbanIp(button.getAttribute("data-ip"));
           }
+          } else if (action === "rename-blocklist") {
+            await renameBlocklist(
+              button.getAttribute("data-id"),
+              button.getAttribute("data-name")
+            );
+          } else if (action === "remove-blocklist") {
+            await removeBlocklist(
+              button.getAttribute("data-id"),
+              button.getAttribute("data-name")
+            );
         } catch (error) {
           showToast(error.message || "Action failed.", "warn");
         } finally {
@@ -1029,6 +1313,12 @@
         }
       });
 
+      document.getElementById("add-blocklist-button").addEventListener("click", function () {
+        addBlocklist().catch(function (error) {
+          showToast(error.message || "Unable to add blocklist.", "warn");
+        });
+      });
+      
       refreshState();
       window.setInterval(refreshState, 6000);
     </script>
