@@ -82,6 +82,13 @@ class ClientIpBanMiddleware:
                 "cached": True,
                 "newlyBlocked": False,
             }
+        elif request.client_ip and user_manager.is_whitelisted_ip(request.client_ip):
+            screening = {
+                "blocked": False,
+                "reason": "whitelist",
+                "cached": True,
+                "newlyBlocked": False,
+            }
         elif request.client_ip:
             screening = ip_screening.evaluate_ip(
                 request.client_ip,
