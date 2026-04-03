@@ -67,6 +67,16 @@ urlpatterns: List[Union[URLPattern, URLResolver]] = [
                                 name="moderator-unban-ip",
                             ),
                             path(
+                                "whitelist-ip/",
+                                moderation.whitelist_ip,
+                                name="moderator-whitelist-ip",
+                            ),
+                            path(
+                                "unwhitelist-ip/",
+                                moderation.unwhitelist_ip,
+                                name="moderator-unwhitelist-ip",
+                            ),
+                            path(
                                 "site-mode/",
                                 moderation.set_site_mode,
                                 name="moderator-site-mode",
