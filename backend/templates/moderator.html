@@ -589,7 +589,31 @@
                 <div class="empty-state">No IPs are currently banned.</div>
               </div>
             </section>
-              <section class="panel section">
+
+            <section class="panel section">
+              <div class="section-head">
+                <h2>Whitelisted IPs</h2>
+                <div class="token"><span id="whitelist-count">0</span>&nbsp;trusted</div>
+              </div>
+
+              <label class="sr-only" for="manual-whitelist-input">Whitelist IP address</label>
+              <div class="manual-ban">
+                <input
+                  id="manual-whitelist-input"
+                  type="text"
+                  inputmode="text"
+                  spellcheck="false"
+                  placeholder="Whitelist an IP directly"
+                >
+                <button id="manual-whitelist-button" class="good" type="button">Whitelist IP</button>
+              </div>
+
+              <div id="whitelist-list" class="stack">
+                <div class="empty-state">No IPs are currently whitelisted.</div>
+              </div>
+            </section>
+
+            <section class="panel section">
               <div class="section-head">
                 <h2>Blocklist management</h2>
                 <div class="token"><span id="blocklist-count">0</span>&nbsp;installed</div>
@@ -678,6 +702,8 @@
       const MODERATOR_REMOVE_SONG_URL = "{{ moderator_remove_song_url }}";
       const MODERATOR_BAN_IP_URL = "{{ moderator_ban_ip_url }}";
       const MODERATOR_UNBAN_IP_URL = "{{ moderator_unban_ip_url }}";
+      const MODERATOR_WHITELIST_IP_URL = "{{ moderator_whitelist_ip_url }}";
+      const MODERATOR_UNWHITELIST_IP_URL = "{{ moderator_unwhitelist_ip_url }}";
       const MODERATOR_SITE_MODE_URL = "{{ moderator_site_mode_url }}";
       const MODERATOR_SKIP_CURRENT_URL = "{{ moderator_skip_current_url }}";
       const MODERATOR_ADD_BLOCKLIST_URL = "{{ moderator_add_blocklist_url }}";
@@ -790,6 +816,22 @@
             return b.latestTs - a.latestTs;
           });
       }
+
+      function buildProtectedModeratorIpSet(entries) {
+        const protectedIps = new Set();
+      
+        (Array.isArray(entries) ? entries : []).forEach(function (entry) {
+          const rawIp = entry && entry.ip ? String(entry.ip).trim() : "";
+          const rawActorRole = entry && entry.actorRole ? String(entry.actorRole).trim().toLowerCase() : "";
+      
+          if (!rawIp) return;
+          if (rawActorRole === "moderator") {
+            protectedIps.add(rawIp);
+          }
+        });
+      
+        return protectedIps;
+      }
       
       function formatAuditAction(entry) {
         const action = entry.action || "action";
@@ -893,39 +935,56 @@
         }).join("");
       }
 
-      function renderConnectedIps(entries, bannedIps) {
+      function renderConnectedIps(entries, bannedIps, whitelistedIps, protectedModeratorIps) {
         const list = document.getElementById("connected-ip-list");
         const items = buildAuditIpIndex(entries);
         const bannedSet = new Set((Array.isArray(bannedIps) ? bannedIps : []).map(function (ip) {
           return String(ip);
         }));
-
+        const whitelistSet = new Set((Array.isArray(whitelistedIps) ? whitelistedIps : []).map(function (ip) {
+          return String(ip);
+        }));
+        const protectedSet = protectedModeratorIps instanceof Set ? protectedModeratorIps : new Set();
+      
         document.getElementById("connected-ip-count").textContent = String(items.length);
-
+      
         if (!items.length) {
           list.innerHTML = '<div class="empty-state">No IPs are visible in the current audit log.</div>';
           return;
         }
-
+      
         list.innerHTML = items.map(function (item) {
           const identity = getIpIdentity(item.ip);
           const isBanned = bannedSet.has(item.ip);
-
+          const isWhitelisted = whitelistSet.has(item.ip);
+          const isProtectedModeratorIp = protectedSet.has(item.ip);
+      
+          const actionsHtml = isProtectedModeratorIp
+            ? ''
+            : [
+                '<div class="ip-actions">',
+                  '<button class="warn" type="button" data-action="ban-listed-ip" data-ip="' + escapeHtml(item.ip) + '"' + (isBanned ? ' disabled' : '') + '>Ban IP</button>',
+                  '<button class="good" type="button" data-action="unban-listed-ip" data-ip="' + escapeHtml(item.ip) + '"' + (!isBanned ? ' disabled' : '') + '>Unban IP</button>',
+                  '<button class="button subtle" type="button" data-action="whitelist-listed-ip" data-ip="' + escapeHtml(item.ip) + '"' + (isWhitelisted ? ' disabled' : '') + '>Whitelist IP</button>',
+                  '<button class="good" type="button" data-action="unwhitelist-listed-ip" data-ip="' + escapeHtml(item.ip) + '"' + (!isWhitelisted ? ' disabled' : '') + '>Unwhitelist IP</button>',
+                '</div>'
+              ].join("")
+            ;
+      
           return [
             '<article class="ip-item ip-identity" style="' + getIpIdentityStyle(item.ip) + '">',
               '<div class="ip-title-row">',
                 '<span class="token ip-token">' + escapeHtml(identity.label) + '</span>',
                 isBanned ? '<span class="token">Banned</span>' : '',
+                isWhitelisted ? '<span class="token">Whitelisted</span>' : '',
+                isProtectedModeratorIp ? '<span class="token">Moderator</span>' : '',
               '</div>',
               '<div class="ip-title">' + escapeHtml(item.ip) + '</div>',
               '<div class="ip-stats">',
                 '<span class="token">Total actions: ' + item.count + '</span>',
                 '<span class="token">Latest: ' + formatAuditTime(item.latestTs) + '</span>',
               '</div>',
-              '<div class="ip-actions">',
-                '<button class="warn" type="button" data-action="ban-listed-ip" data-ip="' + escapeHtml(item.ip) + '"' + (isBanned ? ' disabled' : '') + '>Ban IP</button>',
-                '<button class="good" type="button" data-action="unban-listed-ip" data-ip="' + escapeHtml(item.ip) + '"' + (!isBanned ? ' disabled' : '') + '>Unban IP</button>',
-              '</div>',
+              actionsHtml,
             '</article>'
           ].join("");
         }).join("");
@@ -1184,14 +1243,17 @@
       function renderState(data) {
         const queue = Array.isArray(data.queue) ? data.queue : [];
         const bannedIps = Array.isArray(data.bannedIps) ? data.bannedIps : [];
+        const whitelistedIps = Array.isArray(data.whitelistedIps) ? data.whitelistedIps : [];
         const auditLog = Array.isArray(data.auditLog) ? data.auditLog : [];
         const blocklists = Array.isArray(data.blocklists) ? data.blocklists : [];
-
+        const protectedModeratorIps = buildProtectedModeratorIpSet(auditLog);
+      
         renderMode(data.mode || "event");
         renderCurrentSong(data.currentSong || null);
         renderQueue(queue);
-        renderConnectedIps(auditLog, bannedIps);
+        renderConnectedIps(auditLog, bannedIps, whitelistedIps, protectedModeratorIps);
         renderBanList(bannedIps);
+        renderWhitelistList(whitelistedIps);
         renderAuditLog(auditLog, bannedIps);
         renderIpIntelStatus(data.ipIntel || null);
         renderBlocklists(blocklists);
@@ -1242,6 +1304,40 @@
         await refreshState();
       }
 
+      async function whitelistIp(ip) {
+        await postForm(MODERATOR_WHITELIST_IP_URL, { ip: ip });
+        showToast("IP address whitelisted.", "good");
+        await refreshState();
+      }
+      
+      async function unwhitelistIp(ip) {
+        await postForm(MODERATOR_UNWHITELIST_IP_URL, { ip: ip });
+        showToast("IP address removed from whitelist.", "warn");
+        await refreshState();
+      }
+      
+      function renderWhitelistList(ips) {
+        const list = document.getElementById("whitelist-list");
+        const safeIps = Array.isArray(ips) ? ips : [];
+        document.getElementById("whitelist-count").textContent = String(safeIps.length);
+      
+        if (!safeIps.length) {
+          list.innerHTML = '<div class="empty-state">No IPs are currently whitelisted.</div>';
+          return;
+        }
+      
+        list.innerHTML = safeIps.map(function (ip) {
+          return [
+            '<article class="ban-item">',
+              '<div class="queue-title">' + escapeHtml(ip) + '</div>',
+              '<div class="ban-actions">',
+                '<button class="good" type="button" data-action="unwhitelist-ip" data-ip="' + escapeHtml(ip) + '">Unwhitelist IP</button>',
+              '</div>',
+            '</article>'
+          ].join("");
+        }).join("");
+      }
+      
       async function setMode(mode) {
         const data = await postForm(MODERATOR_SITE_MODE_URL, { mode: mode });
         renderMode(data.mode || mode);
@@ -1281,6 +1377,12 @@
             await unbanIp(button.getAttribute("data-ip"));
           } else if (action === "unban-ip") {
             await unbanIp(button.getAttribute("data-ip"));
+          } else if (action === "whitelist-listed-ip") {
+            await whitelistIp(button.getAttribute("data-ip"));
+          } else if (action === "unwhitelist-listed-ip") {
+            await unwhitelistIp(button.getAttribute("data-ip"));
+          } else if (action === "unwhitelist-ip") {
+            await unwhitelistIp(button.getAttribute("data-ip"));
           } else if (action === "rename-blocklist") {
             await renameBlocklist(
               button.getAttribute("data-id"),
@@ -1333,7 +1435,30 @@
           document.getElementById("manual-ban-button").click();
         }
       });
-
+      
+      document.getElementById("manual-whitelist-button").addEventListener("click", function () {
+        const input = document.getElementById("manual-whitelist-input");
+        const value = input.value.trim();
+        if (!value) {
+          showToast("Enter an IP address to whitelist.", "warn");
+          return;
+        }
+        whitelistIp(value, "")
+          .then(function () {
+            input.value = "";
+          })
+          .catch(function (error) {
+            showToast(error.message || "Unable to whitelist IP.", "warn");
+          });
+      });
+      
+      document.getElementById("manual-whitelist-input").addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          document.getElementById("manual-whitelist-button").click();
+        }
+      });
+      
       document.getElementById("add-blocklist-button").addEventListener("click", function () {
         addBlocklist().catch(function (error) {
           showToast(error.message || "Unable to add blocklist.", "warn");
