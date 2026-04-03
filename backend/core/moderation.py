@@ -9,7 +9,7 @@ from django.shortcuts import render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
-from core import audit_log, base, models, site_mode, user_manager
+from core import audit_log, base, ip_screening, models, site_mode, user_manager
 from core.musiq import controller as musiq_controller, musiq, playback, song_utils
 from core.settings import storage
 
@@ -53,6 +53,8 @@ def _state_payload() -> Dict[str, Any]:
         "queue": queue_payload,
         "bannedIps": user_manager.get_banned_ips(),
         "auditLog": audit_log.get_recent(120),
+        "blocklists": ip_screening.list_blocklists(),
+        "ipIntel": ip_screening.get_runtime_state(),
     }
 
 
@@ -68,6 +70,9 @@ def dashboard(request: WSGIRequest) -> HttpResponse:
             "moderator_ban_ip_url": reverse("moderator-ban-ip"),
             "moderator_unban_ip_url": reverse("moderator-unban-ip"),
             "moderator_site_mode_url": reverse("moderator-site-mode"),
+            "moderator_add_blocklist_url": reverse("moderator-add-blocklist"),
+            "moderator_rename_blocklist_url": reverse("moderator-rename-blocklist"),
+            "moderator_remove_blocklist_url": reverse("moderator-remove-blocklist"),
         }
     )
     return render(request, "moderator.html", context)
@@ -160,6 +165,76 @@ def unban_ip(request: WSGIRequest) -> HttpResponse:
 
     return JsonResponse({"ip": normalized, "bannedIps": user_manager.get_banned_ips()})
 
+
+@require_POST
+@user_manager.moderator_required
+def add_blocklist(request: WSGIRequest) -> HttpResponse:
+    """Upload or register a new IPv4 blocklist file."""
+    try:
+        blocklist = ip_screening.add_blocklist(
+            name=request.POST.get("name", ""),
+            separator=request.POST.get("separator", "auto"),
+            entry_type=request.POST.get("entry_type", "auto"),
+            uploaded_file=request.FILES.get("file"),
+            source_url=request.POST.get("source_url", ""),
+        )
+    except ValueError as exc:
+        return HttpResponseBadRequest(str(exc))
+
+    audit_log.append(
+        "moderator_add_blocklist",
+        request=request,
+        target=blocklist["name"],
+        metadata={
+            "id": blocklist["id"],
+            "entryCount": blocklist["entryCount"],
+            "sourceKind": blocklist["sourceKind"],
+        },
+    )
+    return JsonResponse(_state_payload())
+
+
+@require_POST
+@user_manager.moderator_required
+def rename_blocklist(request: WSGIRequest) -> HttpResponse:
+    """Rename a configured blocklist entry."""
+    source_id = request.POST.get("id", "")
+    new_name = request.POST.get("name", "")
+
+    try:
+        updated = ip_screening.rename_blocklist(source_id, new_name)
+    except ValueError as exc:
+        return HttpResponseBadRequest(str(exc))
+
+    audit_log.append(
+        "moderator_rename_blocklist",
+        request=request,
+        target=updated["name"],
+        metadata={"id": updated["id"]},
+    )
+    return JsonResponse(_state_payload())
+
+
+@require_POST
+@user_manager.moderator_required
+def remove_blocklist(request: WSGIRequest) -> HttpResponse:
+    """Remove a configured blocklist entry."""
+    source_id = request.POST.get("id", "")
+    if not source_id:
+        return HttpResponseBadRequest("Missing blocklist id")
+
+    try:
+        removed_name = ip_screening.remove_blocklist(source_id)
+    except ValueError as exc:
+        return HttpResponseBadRequest(str(exc))
+
+    audit_log.append(
+        "moderator_remove_blocklist",
+        request=request,
+        target=removed_name,
+        metadata={"id": source_id},
+    )
+    return JsonResponse(_state_payload())
 
 @require_POST
 @user_manager.moderator_required
