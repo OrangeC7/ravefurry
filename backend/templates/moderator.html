@@ -963,13 +963,16 @@
             ? ''
             : [
                 '<div class="ip-actions">',
-                  '<button class="warn" type="button" data-action="ban-listed-ip" data-ip="' + escapeHtml(item.ip) + '"' + (isBanned ? ' disabled' : '') + '>Ban IP</button>',
-                  '<button class="good" type="button" data-action="unban-listed-ip" data-ip="' + escapeHtml(item.ip) + '"' + (!isBanned ? ' disabled' : '') + '>Unban IP</button>',
-                  '<button class="button subtle" type="button" data-action="whitelist-listed-ip" data-ip="' + escapeHtml(item.ip) + '"' + (isWhitelisted ? ' disabled' : '') + '>Whitelist IP</button>',
-                  '<button class="good" type="button" data-action="unwhitelist-listed-ip" data-ip="' + escapeHtml(item.ip) + '"' + (!isWhitelisted ? ' disabled' : '') + '>Unwhitelist IP</button>',
+                  (!isBanned
+                    ? '<button class="warn" type="button" data-action="ban-listed-ip" data-ip="' + escapeHtml(item.ip) + '">Ban IP</button>'
+                    : '<button class="good" type="button" data-action="unban-listed-ip" data-ip="' + escapeHtml(item.ip) + '">Unban IP</button>'),
+                  (isWhitelisted
+                    ? '<button class="good" type="button" data-action="unwhitelist-listed-ip" data-ip="' + escapeHtml(item.ip) + '">Unwhitelist IP</button>'
+                    : (!isBanned
+                        ? '<button class="button subtle" type="button" data-action="whitelist-listed-ip" data-ip="' + escapeHtml(item.ip) + '">Whitelist IP</button>'
+                        : '')),
                 '</div>'
-              ].join("")
-            ;
+              ].join("");
       
           return [
             '<article class="ip-item ip-identity" style="' + getIpIdentityStyle(item.ip) + '">',
