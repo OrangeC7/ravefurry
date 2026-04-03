@@ -279,6 +279,81 @@ FURATIC_OBS_OUTPUT_DIR = os.path.expanduser(
     )
 )
 
+FURATIC_IP_BLOCKLIST_DIR = os.path.join(BASE_DIR, "config/ip_blocklists")
+
+FURATIC_IP_SCREEN_CACHE_TTL_SECONDS = 86400
+FURATIC_IP_INTEL_ENABLED = True
+FURATIC_IP_INTEL_CONTACT_EMAIL = "your-real-contact-email@example.com"
+FURATIC_IP_INTEL_FLAGS = "m"
+FURATIC_IP_INTEL_BLOCK_THRESHOLD = 1.0
+FURATIC_IP_INTEL_DAILY_LIMIT = 500
+FURATIC_IP_INTEL_MINUTE_LIMIT = 15
+FURATIC_IP_INTEL_TIMEOUT_SECONDS = 3
+
+pathlib.Path(FURATIC_IP_BLOCKLIST_DIR).mkdir(parents=True, exist_ok=True)
+
+FURATIC_IP_BLOCKLIST_DIR = os.path.expanduser(
+    _config_or_env(
+        "furatic_ip_blocklist_dir",
+        "FURATIC_IP_BLOCKLIST_DIR",
+        os.path.join(BASE_DIR, "config/ip_blocklists"),
+    )
+)
+
+FURATIC_IP_SCREEN_CACHE_TTL_SECONDS = int(
+    os.environ.get("FURATIC_IP_SCREEN_CACHE_TTL_SECONDS", "86400").strip() or "86400"
+)
+
+FURATIC_IP_INTEL_ENABLED = strtobool(
+    str(
+        _config_or_env(
+            "furatic_ip_intel_enabled",
+            "FURATIC_IP_INTEL_ENABLED",
+            "1",
+        )
+    )
+)
+
+FURATIC_IP_INTEL_CONTACT_EMAIL = (
+    os.environ.get("FURATIC_IP_INTEL_CONTACT_EMAIL", "").strip()
+    or os.environ.get("GETIPINTEL_CONTACT_EMAIL", "").strip()
+    or str(config.get("furatic_ip_intel_contact_email", "") or "").strip()
+)
+
+FURATIC_IP_INTEL_FLAGS = (
+    os.environ.get("FURATIC_IP_INTEL_FLAGS", "").strip().lower()
+    or str(config.get("furatic_ip_intel_flags", "") or "").strip().lower()
+    or "m"
+)
+if FURATIC_IP_INTEL_FLAGS not in {"m", "b", "f"}:
+    FURATIC_IP_INTEL_FLAGS = "m"
+
+FURATIC_IP_INTEL_BLOCK_THRESHOLD = float(
+    os.environ.get("FURATIC_IP_INTEL_BLOCK_THRESHOLD", "").strip()
+    or str(config.get("furatic_ip_intel_block_threshold", "") or "").strip()
+    or "0.99"
+)
+
+FURATIC_IP_INTEL_DAILY_LIMIT = int(
+    os.environ.get("FURATIC_IP_INTEL_DAILY_LIMIT", "").strip()
+    or str(config.get("furatic_ip_intel_daily_limit", "") or "").strip()
+    or "500"
+)
+
+FURATIC_IP_INTEL_MINUTE_LIMIT = int(
+    os.environ.get("FURATIC_IP_INTEL_MINUTE_LIMIT", "").strip()
+    or str(config.get("furatic_ip_intel_minute_limit", "") or "").strip()
+    or "15"
+)
+
+FURATIC_IP_INTEL_TIMEOUT_SECONDS = float(
+    os.environ.get("FURATIC_IP_INTEL_TIMEOUT_SECONDS", "").strip()
+    or str(config.get("furatic_ip_intel_timeout_seconds", "") or "").strip()
+    or "2.5"
+)
+
+pathlib.Path(FURATIC_IP_BLOCKLIST_DIR).mkdir(parents=True, exist_ok=True)
+
 # Static files (CSS, JavaScript, Images)
 STATIC_FILES = os.path.join(BASE_DIR, "static")
 STATICFILES_DIRS: List[str] = [STATIC_FILES]
