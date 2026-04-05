@@ -104,7 +104,7 @@ Ravefurry is an actively customized fork and will continue to evolve over time a
 
 
 
-## Below is the Raveberry README from before we made our own changes:
+## Below is the Raveberry README before we made our own changes:
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/raveberry/raveberry/publish.yml)](https://github.com/raveberry/raveberry/actions/workflows/publish.yml)
 [![PyPI](https://img.shields.io/pypi/v/raveberry)](https://pypi.org/project/raveberry/)
