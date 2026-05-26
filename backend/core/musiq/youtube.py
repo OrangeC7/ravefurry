@@ -157,7 +157,7 @@ class Youtube:
 class YoutubeSongProvider(SongProvider, Youtube):
     """This class handles songs from Youtube."""
 
-    MAX_DURATION_SECONDS = 10 * 60
+    MAX_DURATION_SECONDS = 5 * 60
 
     @staticmethod
     def _normalize_host(url: str) -> str:
@@ -266,7 +266,7 @@ class YoutubeSongProvider(SongProvider, Youtube):
                 return False
 
             if is_too_long(self.info_dict):
-                self.error = "Sorry, videos over 10 minutes are not allowed."
+                self.error = "Sorry, content over 5 minutes long is not allowed."
                 return False
         else:
             # do not filter to only receive "song" results, because we would skip the top result
