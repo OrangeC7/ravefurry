@@ -5,6 +5,8 @@ import {
 } from '../base';
 import {setStoredVote} from './vote-state';
 
+let musicRequestInFlight = false;
+
 /** Finds the song key to a given HTML element.
  * @param {HTMLElement} element an element that is part of a queue entry
  * @return {number} id of the song represented in the entry
@@ -94,6 +96,11 @@ export function requestArchivedMusic(key, query,
  * @param {string} platform the platform the music should be played from
  */
 export function requestNewMusic(query, platform = localStorageGet('platform')) {
+  if (musicRequestInFlight) {
+    return;
+  }
+  musicRequestInFlight = true;
+
   $.post(urls['musiq']['request-music'],
       {
         query: query,
@@ -104,6 +111,8 @@ export function requestNewMusic(query, platform = localStorageGet('platform')) {
     setStoredVote(response.key, '+');
   }).fail(function(response) {
     errorToast(response.responseText, '"' + query + '"');
+  }).always(function() {
+    musicRequestInFlight = false;
   });
   infoToast('searching...', '"' + query + '"');
   $('#music-input').val('').trigger('change');
