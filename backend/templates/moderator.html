@@ -182,11 +182,6 @@
         gap: 14px;
       }
 
-      .section,
-      #audit-list > article {
-        max-width: 75%;
-      }
-
       .section-head {
         display: flex;
         align-items: center;
@@ -227,9 +222,12 @@
 
       .song-title,
       .queue-title {
+        min-width: 0;
+        max-width: 100%;
         font-size: 20px;
         font-weight: 800;
         letter-spacing: -0.03em;
+        overflow-wrap: anywhere;
         word-break: break-word;
       }
 
@@ -381,8 +379,12 @@
       }
       
       .audit-summary {
+        min-width: 0;
+        max-width: 100%;
         color: var(--text);
         line-height: 1.45;
+        overflow-wrap: anywhere;
+        word-break: break-word;
       }
       
       .audit-meta,
