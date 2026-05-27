@@ -255,12 +255,12 @@ FURATIC_HLS_URL = _config_or_env(
 FURATIC_LOGO_SQUARE_URL = _config_or_env(
     "furatic_logo_square_url",
     "FURATIC_LOGO_SQUARE_URL",
-    "https://raw.githubusercontent.com/OrangeC7/raveberry/master/FuraticLogo.svg",
+    "https://raw.githubusercontent.com/OrangeC7/raveberry/master/FuraticLogo.png",
 )
 FURATIC_LOGO_WIDE_URL = _config_or_env(
     "furatic_logo_wide_url",
     "FURATIC_LOGO_WIDE_URL",
-    "https://raw.githubusercontent.com/OrangeC7/raveberry/master/FuraticLogoWide.svg",
+    "https://raw.githubusercontent.com/OrangeC7/raveberry/master/FuraticLogoWide.png",
 )
 FURATIC_MOD_USERNAME = _config_or_env(
     "furatic_mod_username",
