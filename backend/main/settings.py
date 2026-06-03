@@ -407,8 +407,28 @@ else:
 # Logging
 
 # avoid creating a logger in every module
-# https://stackoverflow.com/questions/34726515/avoid-logger-logging-getlogger-name
 logging.basicConfig()
+
+# Logging failures due to Windows Defender scanning our files must never take down the site. 
+# This keeps logging internals from surfacing transient Windows file lock errors due to OS software.
+logging.raiseExceptions = DEBUG or TESTING
+
+FURATIC_LOG_MAX_BYTES = int(
+    os.environ.get("FURATIC_LOG_MAX_BYTES", str(1024 * 1024 * 15))
+)
+FURATIC_LOG_BACKUP_COUNT = int(
+    os.environ.get("FURATIC_LOG_BACKUP_COUNT", "10")
+)
+FURATIC_LOG_RETRY_ATTEMPTS = int(
+    os.environ.get("FURATIC_LOG_RETRY_ATTEMPTS", "8")
+)
+FURATIC_LOG_RETRY_INITIAL_DELAY_SECONDS = float(
+    os.environ.get("FURATIC_LOG_RETRY_INITIAL_DELAY_SECONDS", "0.25")
+)
+FURATIC_LOG_RETRY_MAX_DELAY_SECONDS = float(
+    os.environ.get("FURATIC_LOG_RETRY_MAX_DELAY_SECONDS", "2.0")
+)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -425,18 +445,28 @@ LOGGING = {
         "infofile": {
             "level": "INFO",
             "formatter": "precise",
-            "class": "logging.handlers.RotatingFileHandler",
+            "class": "core.logging_handlers.WindowsSafeRotatingFileHandler",
             "filename": os.path.join(BASE_DIR, "logs/info.log"),
-            "maxBytes": 1024 * 1024 * 15,  # 15MB
-            "backupCount": 10,
+            "maxBytes": FURATIC_LOG_MAX_BYTES,
+            "backupCount": FURATIC_LOG_BACKUP_COUNT,
+            "encoding": "utf-8",
+            "delay": True,
+            "retry_attempts": FURATIC_LOG_RETRY_ATTEMPTS,
+            "retry_initial_delay_seconds": FURATIC_LOG_RETRY_INITIAL_DELAY_SECONDS,
+            "retry_max_delay_seconds": FURATIC_LOG_RETRY_MAX_DELAY_SECONDS,
         },
         "errorfile": {
             "level": "ERROR",
             "formatter": "precise",
-            "class": "logging.handlers.RotatingFileHandler",
+            "class": "core.logging_handlers.WindowsSafeRotatingFileHandler",
             "filename": os.path.join(BASE_DIR, "logs/error.log"),
-            "maxBytes": 1024 * 1024 * 15,  # 15MB
-            "backupCount": 10,
+            "maxBytes": FURATIC_LOG_MAX_BYTES,
+            "backupCount": FURATIC_LOG_BACKUP_COUNT,
+            "encoding": "utf-8",
+            "delay": True,
+            "retry_attempts": FURATIC_LOG_RETRY_ATTEMPTS,
+            "retry_initial_delay_seconds": FURATIC_LOG_RETRY_INITIAL_DELAY_SECONDS,
+            "retry_max_delay_seconds": FURATIC_LOG_RETRY_MAX_DELAY_SECONDS,
         },
         "console": {
             "level": "INFO",
