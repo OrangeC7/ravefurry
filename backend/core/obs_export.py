@@ -8,6 +8,7 @@ from typing import Any, Dict, Iterable, List
 from django.conf import settings as conf
 
 from core.musiq import song_utils
+from core.safe_files import atomic_write_text, retry_file_operation, safe_unlink
 
 LOGGER = logging.getLogger(__name__)
 MAX_QUEUE_FILES = 99
@@ -20,11 +21,8 @@ def _stringify(value: Any) -> str:
 
 
 def _write_lines(path: Path, lines: Iterable[str]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
     payload = "\n".join(_stringify(line) for line in lines) + "\n"
-    temp_path = path.with_suffix(path.suffix + ".tmp")
-    temp_path.write_text(payload, encoding="utf-8")
-    temp_path.replace(path)
+    atomic_write_text(path, payload, encoding="utf-8", logger=LOGGER)
 
 
 def _current_position_text(current_song: Dict[str, Any] | None, progress: Any) -> str:
@@ -48,7 +46,11 @@ def write_from_state(state: Dict[str, Any]) -> None:
         queue = list(musiq_state.get("songQueue") or [])[:MAX_QUEUE_FILES]
 
         output_dir = Path(conf.FURATIC_OBS_OUTPUT_DIR).expanduser()
-        output_dir.mkdir(parents=True, exist_ok=True)
+        retry_file_operation(
+            lambda: output_dir.mkdir(parents=True, exist_ok=True),
+            description=f"create OBS export directory {output_dir}",
+            logger=LOGGER,
+        )
 
         if current_song:
             current_lines = [
@@ -79,6 +81,6 @@ def write_from_state(state: Dict[str, Any]) -> None:
                 continue
             index = int(suffix)
             if index < 1 or index > len(queue):
-                stale_path.unlink(missing_ok=True)
+                safe_unlink(stale_path, missing_ok=True, logger=LOGGER)
     except Exception:  # pylint: disable=broad-except
         LOGGER.exception("failed to write OBS export files")
