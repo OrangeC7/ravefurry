@@ -479,7 +479,7 @@ help        show this help and exit""",
                 )
 
                 server = subprocess.Popen(
-                    [sys.executable, "manage.py", "runserver", "127.0.0.1:8080", "--noreload"],
+                    [sys.executable, "manage.py", "runserver", "127.0.0.1:8080", "--noreload", "--nothreading"],
                     env={
                         **os.environ,
                         "DJANGO_DEBUG": "1",
