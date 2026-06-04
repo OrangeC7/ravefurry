@@ -459,6 +459,73 @@ def state_dict() -> Dict[str, Any]:
     state["musiq"] = musiq_state
     return state
 
+def state_probe(request: WSGIRequest) -> JsonResponse:
+    """Temporary diagnostic endpoint for isolating musiq state handle growth."""
+
+    part = request.GET.get("part", "base")
+    result: Dict[str, Any] = {"part": part}
+
+    if part == "base":
+        result["state"] = base.state_dict()
+
+    elif part == "settings":
+        result["state"] = {
+            "paused": storage.get("paused"),
+            "shuffle": storage.get("shuffle"),
+            "repeat": storage.get("repeat"),
+            "autoplay": storage.get("autoplay"),
+            "volume": storage.get("volume"),
+        }
+
+    elif part == "current":
+        try:
+            current_song = CurrentSong.objects.get()
+            result["currentSong"] = model_to_dict(current_song)
+        except CurrentSong.DoesNotExist:
+            result["currentSong"] = None
+
+    elif part == "queue-count":
+        result["count"] = ordered_queue_queryset().count()
+
+    elif part == "queue-basic":
+        result["queue"] = [
+            {
+                "id": song.id,
+                "duration": song.duration,
+                "votes": song.votes,
+            }
+            for song in ordered_queue_queryset()
+        ]
+
+    elif part == "queue-full":
+        song_queue = []
+        total_time = 0
+        for song in ordered_queue_queryset():
+            song_dict = model_to_dict(song)
+            song_dict = util.camelize(song_dict)
+            song_dict["durationFormatted"] = song_utils.format_seconds(
+                song_dict["duration"]
+            )
+            song_queue.append(song_dict)
+            if song_dict["duration"] >= 0:
+                total_time += song_dict["duration"]
+
+        result["songQueue"] = song_queue
+        result["totalTimeFormatted"] = song_utils.format_seconds(total_time)
+
+    elif part == "redis-tail":
+        result["state"] = {
+            "alarm": redis.get("alarm_playing"),
+            "backupPlaying": redis.get("backup_playing"),
+        }
+
+    elif part == "full":
+        result["state"] = state_dict()
+
+    else:
+        return JsonResponse({"error": f"unknown part: {part}"}, status=400)
+
+    return JsonResponse(result)
 
 def update_state() -> None:
     """Sends an update event to all connected clients and refreshes OBS exports."""
