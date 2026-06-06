@@ -112,6 +112,8 @@ class MusicProvider:
         """Tries to request this resource.
         Uses the local cache if possible, otherwise tries to retrieve it online."""
 
+        self.error = ""
+
         if 0 < storage.get("max_queue_length") <= playback.queue.count():
             self.error = "Queue limit reached"
             raise ProviderError(self.error)
