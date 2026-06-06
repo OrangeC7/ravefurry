@@ -38,6 +38,11 @@ def _serialize_song(song) -> Dict[str, Any]:
         "requesterIp": user_manager.get_song_requester_ip(queue_key),
     }
 
+def _request_settings_payload() -> Dict[str, Any]:
+    return {
+        "requestCooldownSeconds": float(storage.get("request_cooldown_seconds")),
+        "maxSongDurationSeconds": float(storage.get("max_song_duration_seconds")),
+    }
 
 def _state_payload() -> Dict[str, Any]:
     try:
@@ -56,6 +61,7 @@ def _state_payload() -> Dict[str, Any]:
         "auditLog": audit_log.get_recent(120),
         "blocklists": ip_screening.list_blocklists(),
         "ipIntel": ip_screening.get_runtime_state(),
+        "requestSettings": _request_settings_payload(),
     }
 
 
@@ -73,6 +79,7 @@ def dashboard(request: WSGIRequest) -> HttpResponse:
             "moderator_whitelist_ip_url": reverse("moderator-whitelist-ip"),
             "moderator_unwhitelist_ip_url": reverse("moderator-unwhitelist-ip"),
             "moderator_site_mode_url": reverse("moderator-site-mode"),
+            "moderator_request_settings_url": reverse("moderator-request-settings"),
             "moderator_add_blocklist_url": reverse("moderator-add-blocklist"),
             "moderator_rename_blocklist_url": reverse("moderator-rename-blocklist"),
             "moderator_remove_blocklist_url": reverse("moderator-remove-blocklist"),
@@ -274,16 +281,56 @@ def remove_blocklist(request: WSGIRequest) -> HttpResponse:
 @require_POST
 @user_manager.moderator_required
 def set_site_mode(request: WSGIRequest) -> HttpResponse:
-    """Switch between event mode and after-hours mode."""
+    """Switch between event, closing, and after-hours mode."""
     mode = request.POST.get("mode", "")
     if mode not in site_mode.VALID_MODES:
         return HttpResponseBadRequest("Invalid site mode")
 
     selected_mode = site_mode.set_mode(mode)
     audit_log.append("moderator_set_site_mode", request=request, target=selected_mode)
+
     if selected_mode == site_mode.AFTER_HOURS_MODE:
         playback.request_operator_command("pause_for_afterhours")
     else:
         playback.request_operator_command("resume_from_afterhours")
 
     return JsonResponse({"mode": selected_mode})
+
+@require_POST
+@user_manager.moderator_required
+def set_request_settings(request: WSGIRequest) -> HttpResponse:
+    """Update runtime song request controls."""
+
+    try:
+        request_cooldown_seconds = float(
+            request.POST.get("request_cooldown_seconds", "")
+        )
+        max_song_duration_seconds = float(
+            request.POST.get("max_song_duration_seconds", "")
+        )
+    except ValueError:
+        return HttpResponseBadRequest("Request settings must be numeric.")
+
+    if request_cooldown_seconds < 0:
+        return HttpResponseBadRequest("Request cooldown cannot be negative.")
+    if max_song_duration_seconds < 0:
+        return HttpResponseBadRequest("Maximum song length cannot be negative.")
+
+    # Keep values sane for accidental input mistakes without preventing normal use.
+    request_cooldown_seconds = min(request_cooldown_seconds, 24 * 60 * 60)
+    max_song_duration_seconds = min(max_song_duration_seconds, 24 * 60 * 60)
+
+    storage.put("request_cooldown_seconds", request_cooldown_seconds)
+    storage.put("max_song_duration_seconds", max_song_duration_seconds)
+
+    audit_log.append(
+        "moderator_set_request_settings",
+        request=request,
+        target="request-settings",
+        metadata={
+            "requestCooldownSeconds": request_cooldown_seconds,
+            "maxSongDurationSeconds": max_song_duration_seconds,
+        },
+    )
+
+    return JsonResponse(_state_payload())
