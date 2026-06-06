@@ -189,6 +189,22 @@ class SongProvider(MusicProvider):
 
     def remove_placeholder(self) -> None:
         assert self.queued_song
+
+        queue_key = self.queued_song.id
+        requester_ip = getattr(self.queued_song, "requester_ip", "") or ""
+        requester_session_key = getattr(self.queued_song, "requester_session_key", "") or ""
+
+        try:
+            from core import user_manager  # pylint: disable=import-outside-toplevel
+
+            user_manager.release_queue_slot_for_song(queue_key)
+            user_manager.clear_request_cooldown(requester_ip, requester_session_key)
+        except Exception:  # pylint: disable=broad-except
+            logging.exception(
+                "failed to release requester state for removed placeholder %s",
+                queue_key,
+            )
+
         self.queued_song.delete()
 
     def check_cached(self) -> bool:
