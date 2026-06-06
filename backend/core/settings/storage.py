@@ -55,6 +55,8 @@ defaults = {
     "new_music_only": False,
     "enqueue_first": False,
     "song_cooldown": 0.0,
+    "request_cooldown_seconds": 0.0,
+    "max_song_duration_seconds": 300.0,
     "max_download_size": 0.0,
     "max_playlist_items": 10,
     "max_queue_length": 0,
