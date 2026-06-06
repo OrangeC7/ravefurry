@@ -1,9 +1,10 @@
-"""Runtime-only public site mode for FURATIC."""
 from core import redis
 
 EVENT_MODE = "event"
+CLOSING_MODE = "closing"
 AFTER_HOURS_MODE = "afterhours"
-VALID_MODES = {EVENT_MODE, AFTER_HOURS_MODE}
+
+VALID_MODES = {EVENT_MODE, CLOSING_MODE, AFTER_HOURS_MODE}
 
 
 def get_mode() -> str:
@@ -12,10 +13,18 @@ def get_mode() -> str:
 
 
 def set_mode(mode: str) -> str:
-    normalized = AFTER_HOURS_MODE if mode == AFTER_HOURS_MODE else EVENT_MODE
+    normalized = mode if mode in VALID_MODES else EVENT_MODE
     redis.put("site_mode", normalized)
     return normalized
 
 
 def is_afterhours() -> bool:
     return get_mode() == AFTER_HOURS_MODE
+
+
+def is_closing() -> bool:
+    return get_mode() == CLOSING_MODE
+
+
+def accepts_song_requests() -> bool:
+    return get_mode() == EVENT_MODE
