@@ -220,6 +220,7 @@ export function updateState(newState) {
   // don't start a new animation when an old one is still in progress
   // the running animation will end in the (then) current state
   applyQueueChange(oldState, state);
+  syncClosingBanner(state);
 
   syncAudioStream();
 }
@@ -235,6 +236,18 @@ function insertDisplayName(element, song) {
     element.text(' – ' + song.title);
     element.prepend($('<strong/>').text(song.artist));
   }
+}
+
+/** Show or hide the closing-mode queue banner. */
+function syncClosingBanner(newState) {
+  const banner = $('#furatic-closing-banner');
+  if (!banner.length) {
+    return;
+  }
+
+  const visible = newState && newState.siteMode === 'closing';
+  banner.toggleClass('is-visible', visible);
+  banner.attr('aria-hidden', visible ? 'false' : 'true');
 }
 
 /** Create an empty queue entry.
