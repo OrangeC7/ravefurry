@@ -523,6 +523,7 @@
           <div class="hero-actions">
             <div class="toolbar" aria-label="Moderator controls">
               <button id="event-mode-button" class="active" type="button">Event mode</button>
+              <button id="closing-mode-button" type="button">Closing mode</button>
               <button id="afterhours-mode-button" type="button">After-hours mode</button>
               <a class="button subtle" href="/accounts/logout/">Log out</a>
             </div>
@@ -622,6 +623,49 @@
 
             <section class="panel section">
               <div class="section-head">
+                <h2>Song request controls</h2>
+                <div class="token" id="request-settings-summary">Cooldown: — • Max length: —</div>
+              </div>
+            
+              <p class="helper-text">
+                These settings apply immediately. Use 0 to disable a limit.
+              </p>
+            
+              <div class="field-grid">
+                <label class="field-label" for="request-cooldown-input">
+                  Request cooldown, seconds
+                  <input
+                    id="request-cooldown-input"
+                    type="number"
+                    inputmode="numeric"
+                    min="0"
+                    max="86400"
+                    step="1"
+                    placeholder="0"
+                  >
+                </label>
+            
+                <label class="field-label" for="max-song-duration-input">
+                  Max song length, seconds
+                  <input
+                    id="max-song-duration-input"
+                    type="number"
+                    inputmode="numeric"
+                    min="0"
+                    max="86400"
+                    step="1"
+                    placeholder="300"
+                  >
+                </label>
+              </div>
+            
+              <button id="save-request-settings-button" class="good" type="button">
+                Save request controls
+              </button>
+            </section>
+            
+            <section class="panel section">
+              <div class="section-head">
                 <h2>Blocklist management</h2>
                 <div class="token"><span id="blocklist-count">0</span>&nbsp;installed</div>
               </div>
@@ -712,6 +756,7 @@
       const MODERATOR_WHITELIST_IP_URL = "{{ moderator_whitelist_ip_url }}";
       const MODERATOR_UNWHITELIST_IP_URL = "{{ moderator_unwhitelist_ip_url }}";
       const MODERATOR_SITE_MODE_URL = "{{ moderator_site_mode_url }}";
+      const MODERATOR_REQUEST_SETTINGS_URL = "{{ moderator_request_settings_url }}";
       const MODERATOR_SKIP_CURRENT_URL = "{{ moderator_skip_current_url }}";
       const MODERATOR_ADD_BLOCKLIST_URL = "{{ moderator_add_blocklist_url }}";
       const MODERATOR_RENAME_BLOCKLIST_URL = "{{ moderator_rename_blocklist_url }}";
@@ -1159,12 +1204,58 @@
       }
 
       function renderMode(mode) {
-        const prettyMode = mode === "afterhours" ? "After-hours" : "Event";
+        const prettyMode =
+          mode === "afterhours" ? "After-hours" :
+          mode === "closing" ? "Closing" :
+          "Event";
+      
         document.getElementById("current-mode-token").textContent = "Mode: " + prettyMode;
         document.getElementById("event-mode-button").classList.toggle("active", mode === "event");
+        document.getElementById("closing-mode-button").classList.toggle("active", mode === "closing");
         document.getElementById("afterhours-mode-button").classList.toggle("active", mode === "afterhours");
       }
 
+      function formatSettingSeconds(seconds) {
+        const value = Number(seconds) || 0;
+        if (value <= 0) return "disabled";
+        if (value < 60) return String(Math.round(value)) + "s";
+      
+        const minutes = Math.floor(value / 60);
+        const remainingSeconds = Math.round(value % 60);
+      
+        if (remainingSeconds === 0) return String(minutes) + "m";
+        return String(minutes) + "m " + String(remainingSeconds) + "s";
+      }
+      
+      function renderRequestSettings(settings) {
+        const safeSettings = settings || {};
+        const cooldown = Math.max(0, Math.round(Number(safeSettings.requestCooldownSeconds) || 0));
+        const maxDuration = Math.max(0, Math.round(Number(safeSettings.maxSongDurationSeconds) || 0));
+      
+        document.getElementById("request-cooldown-input").value = String(cooldown);
+        document.getElementById("max-song-duration-input").value = String(maxDuration);
+      
+        document.getElementById("request-settings-summary").textContent =
+          "Cooldown: " + formatSettingSeconds(cooldown) +
+          " • Max length: " + formatSettingSeconds(maxDuration);
+      }
+      
+      async function saveRequestSettings() {
+        const cooldownInput = document.getElementById("request-cooldown-input");
+        const maxDurationInput = document.getElementById("max-song-duration-input");
+      
+        const cooldown = Math.max(0, Math.round(Number(cooldownInput.value) || 0));
+        const maxDuration = Math.max(0, Math.round(Number(maxDurationInput.value) || 0));
+      
+        const data = await postForm(MODERATOR_REQUEST_SETTINGS_URL, {
+          request_cooldown_seconds: cooldown,
+          max_song_duration_seconds: maxDuration
+        });
+      
+        renderState(data);
+        showToast("Song request controls saved.", "good");
+      }
+      
       function renderCurrentSong(song) {
         const container = document.getElementById("current-song-card");
         if (!song) {
@@ -1259,6 +1350,7 @@
         const protectedModeratorIps = buildProtectedModeratorIpSet(auditLog);
       
         renderMode(data.mode || "event");
+        renderRequestSettings(data.requestSettings || null);
         renderCurrentSong(data.currentSong || null);
         renderQueue(queue);
         renderConnectedIps(auditLog, bannedIps, whitelistedIps, protectedModeratorIps);
@@ -1352,8 +1444,10 @@
         const data = await postForm(MODERATOR_SITE_MODE_URL, { mode: mode });
         renderMode(data.mode || mode);
         showToast(
-          mode === "afterhours" ? "After-hours mode enabled." : "Event mode enabled.",
-          mode === "afterhours" ? "warn" : "good"
+          mode === "afterhours" ? "After-hours mode enabled." :
+          mode === "closing" ? "Closing mode enabled." :
+          "Event mode enabled.",
+          mode === "afterhours" || mode === "closing" ? "warn" : "good"
         );
         await refreshState();
       }
@@ -1416,7 +1510,13 @@
           showToast(error.message || "Unable to switch mode.", "warn");
         });
       });
-
+      
+      document.getElementById("closing-mode-button").addEventListener("click", function () {
+        setMode("closing").catch(function (error) {
+          showToast(error.message || "Unable to switch mode.", "warn");
+        });
+      });
+      
       document.getElementById("afterhours-mode-button").addEventListener("click", function () {
         setMode("afterhours").catch(function (error) {
           showToast(error.message || "Unable to switch mode.", "warn");
@@ -1472,6 +1572,12 @@
       document.getElementById("add-blocklist-button").addEventListener("click", function () {
         addBlocklist().catch(function (error) {
           showToast(error.message || "Unable to add blocklist.", "warn");
+        });
+      });
+
+      document.getElementById("save-request-settings-button").addEventListener("click", function () {
+        saveRequestSettings().catch(function (error) {
+          showToast(error.message || "Unable to save request controls.", "warn");
         });
       });
       
