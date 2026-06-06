@@ -157,7 +157,9 @@ class Youtube:
 class YoutubeSongProvider(SongProvider, Youtube):
     """This class handles songs from Youtube."""
 
-    MAX_DURATION_SECONDS = 5 * 60
+    @staticmethod
+    def max_duration_seconds() -> float:
+        return max(0.0, float(storage.get("max_song_duration_seconds")))
 
     @staticmethod
     def _normalize_host(url: str) -> str:
@@ -236,9 +238,13 @@ class YoutubeSongProvider(SongProvider, Youtube):
                 or "sign in to confirm your age" in message
             )
 
+        def duration_limit_label() -> str:
+            return song_utils.format_seconds(self.max_duration_seconds())
+
         def is_too_long(info: Dict[str, Any]) -> bool:
+            max_duration = self.max_duration_seconds()
             duration = info.get("duration")
-            return duration is not None and duration > self.MAX_DURATION_SECONDS
+            return max_duration > 0 and duration is not None and duration > max_duration
 
         def extract_info(video_id: str) -> bool:
             try:
@@ -266,7 +272,10 @@ class YoutubeSongProvider(SongProvider, Youtube):
                 return False
 
             if is_too_long(self.info_dict):
-                self.error = "Sorry, content over 5 minutes long is not allowed."
+                self.error = (
+                    "Sorry, content over "
+                    f"{duration_limit_label()} long is not allowed."
+                )
                 return False
         else:
             # do not filter to only receive "song" results, because we would skip the top result
