@@ -195,15 +195,31 @@ class SongProvider(MusicProvider):
         return False
 
     def check_not_too_large(self, size: Optional[float]) -> bool:
-        """Returns whether the the given size is small enough in order for the song to be played."""
+        """Returns whether the given file size is small enough to be played."""
         max_size = storage.get("max_download_size") * 1024 * 1024
         if (
             max_size != 0
             and not self.check_cached()
             and (size is not None and size > max_size)
         ):
-            self.error = "Song too long"
+            self.error = "Song too large"
             return False
+        return True
+
+    def check_not_too_long(self, duration: Optional[float]) -> bool:
+        """Return whether the given duration is allowed by the moderator setting."""
+
+        max_duration = float(storage.get("max_song_duration_seconds"))
+        if max_duration <= 0 or duration is None:
+            return True
+
+        if duration > max_duration:
+            self.error = (
+                "Sorry, songs over "
+                f"{song_utils.format_seconds(max_duration)} long are not allowed."
+            )
+            return False
+
         return True
 
     def check_available(self) -> bool:
@@ -344,6 +360,17 @@ class SongProvider(MusicProvider):
             return
 
         metadata = self.get_metadata()
+
+        if not self.check_not_too_long(metadata.get("duration")):
+            logging.info(
+                "song rejected by max duration setting: query=%r url=%r duration=%r",
+                self.query,
+                metadata.get("external_url"),
+                metadata.get("duration"),
+            )
+            self.remove_placeholder()
+            musiq.update_state()
+            return
 
         assert metadata["external_url"]
         self.queued_song.artist = metadata["artist"]
