@@ -655,6 +655,26 @@ def remember_request_cooldown(request_ip: str, session_key: str = "") -> None:
     except RedisError as error:
         logger.warning("failed to store request cooldown for %s: %s", key, error)
 
+def clear_request_cooldown(request_ip: str, session_key: str = "") -> None:
+    """Clear request cooldown state for a failed/removed placeholder request."""
+
+    keys = []
+
+    normalized_ip = _normalize_ip(request_ip)
+    if normalized_ip:
+        keys.append(f"request-cooldown:ip:{normalized_ip}")
+
+    clean_session_key = str(session_key or "").strip()
+    if clean_session_key:
+        keys.append(f"request-cooldown:session:{clean_session_key}")
+
+    if not keys:
+        return
+
+    try:
+        redis.connection.delete(*keys)
+    except RedisError as error:
+        logger.warning("failed to clear request cooldown for %s: %s", keys, error)
 
 def update_user_count() -> None:
     """Go through all recent requests and delete those that were too long ago."""
