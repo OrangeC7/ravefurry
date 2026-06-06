@@ -600,6 +600,61 @@ def clear_queue_slots() -> None:
     except RedisError as error:
         logger.warning("failed to clear queue slots: %s", error)
 
+def _request_cooldown_key(request_ip: str, session_key: str = "") -> str:
+    normalized_ip = _normalize_ip(request_ip)
+    if normalized_ip:
+        return f"request-cooldown:ip:{normalized_ip}"
+
+    clean_session_key = str(session_key or "").strip()
+    if clean_session_key:
+        return f"request-cooldown:session:{clean_session_key}"
+
+    return ""
+
+
+def request_cooldown_remaining(request_ip: str, session_key: str = "") -> int:
+    """Return remaining request cooldown seconds for this requester.
+
+    Returns 0 when cooldown is disabled, the requester cannot be identified,
+    or Redis is unavailable. Redis failure should not break song requests.
+    """
+
+    cooldown_seconds = int(max(0, round(float(storage.get("request_cooldown_seconds")))))
+    if cooldown_seconds <= 0:
+        return 0
+
+    key = _request_cooldown_key(request_ip, session_key)
+    if not key:
+        return 0
+
+    try:
+        ttl = redis.connection.ttl(key)
+    except RedisError as error:
+        logger.warning("failed to read request cooldown for %s: %s", key, error)
+        return 0
+
+    if ttl is None or ttl < 0:
+        return 0
+
+    return int(ttl)
+
+
+def remember_request_cooldown(request_ip: str, session_key: str = "") -> None:
+    """Start the request cooldown for this requester."""
+
+    cooldown_seconds = int(max(0, round(float(storage.get("request_cooldown_seconds")))))
+    if cooldown_seconds <= 0:
+        return
+
+    key = _request_cooldown_key(request_ip, session_key)
+    if not key:
+        return
+
+    try:
+        redis.connection.set(key, "1", ex=cooldown_seconds)
+    except RedisError as error:
+        logger.warning("failed to store request cooldown for %s: %s", key, error)
+
 
 def update_user_count() -> None:
     """Go through all recent requests and delete those that were too long ago."""
