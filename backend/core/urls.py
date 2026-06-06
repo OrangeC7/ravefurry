@@ -82,6 +82,11 @@ urlpatterns: List[Union[URLPattern, URLResolver]] = [
                                 name="moderator-site-mode",
                             ),
                             path(
+                                "request-settings/",
+                                moderation.set_request_settings,
+                                name="moderator-request-settings",
+                            ),
+                            path(
                                 "blocklists/add/",
                                 moderation.add_blocklist,
                                 name="moderator-add-blocklist",
