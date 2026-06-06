@@ -191,6 +191,21 @@ def try_providers(
 
     return provider
 
+def _format_cooldown_remaining(seconds: int) -> str:
+    seconds = max(1, int(seconds))
+    if seconds < 60:
+        return f"{seconds} second{'s' if seconds != 1 else ''}"
+
+    minutes = seconds // 60
+    remaining_seconds = seconds % 60
+
+    if remaining_seconds == 0:
+        return f"{minutes} minute{'s' if minutes != 1 else ''}"
+
+    return (
+        f"{minutes} minute{'s' if minutes != 1 else ''} "
+        f"and {remaining_seconds} second{'s' if remaining_seconds != 1 else ''}"
+    )
 
 # accessed by the discord bot
 @csrf_exempt
@@ -199,6 +214,12 @@ def request_music(request: WSGIRequest) -> HttpResponse:
     """Endpoint to request music."""
     if site_mode.is_afterhours():
         return HttpResponseBadRequest("FURATIC is currently in After Hours mode.")
+    if site_mode.is_closing():
+        return HttpResponseBadRequest(
+            "Closing time: we are no longer accepting new songs. "
+            "Thanks for coming!"
+        )
+
     key_param = request.POST.get("key")
     query = request.POST.get("query")
     playlist = request.POST.get("playlist") == "true"
@@ -208,6 +229,19 @@ def request_music(request: WSGIRequest) -> HttpResponse:
         return HttpResponseBadRequest("No query given")
 
     requester_ip = user_manager.get_client_ip(request)
+    session_key = request.session.session_key or ""
+
+    cooldown_remaining = user_manager.request_cooldown_remaining(
+        requester_ip,
+        session_key,
+    )
+    if cooldown_remaining > 0:
+        return HttpResponseBadRequest(
+            "Please wait "
+            f"{_format_cooldown_remaining(cooldown_remaining)} "
+            "before adding another song."
+        )
+
     if storage.get("ip_checking"):
         if playlist:
             return HttpResponseBadRequest(
@@ -276,6 +310,8 @@ def request_music(request: WSGIRequest) -> HttpResponse:
         )
         update_state()
 
+    user_manager.remember_request_cooldown(requester_ip, session_key)
+
     return JsonResponse({"message": provider.ok_message, "key": queue_key})
 
 
@@ -284,6 +320,11 @@ def request_radio(request: WSGIRequest) -> HttpResponse:
     """Endpoint to request radio for the current song."""
     if site_mode.is_afterhours():
         return HttpResponseBadRequest("FURATIC is currently in After Hours mode.")
+    if site_mode.is_closing():
+        return HttpResponseBadRequest(
+            "Closing time: we are no longer accepting new songs. "
+            "Thanks for coming!"
+        )
     try:
         current_song = CurrentSong.objects.get()
     except CurrentSong.DoesNotExist:
@@ -379,6 +420,7 @@ def state_dict() -> Dict[str, Any]:
 
     musiq_state: Dict[str, Any] = {}
 
+    musiq_state["siteMode"] = site_mode.get_mode()
     musiq_state["paused"] = storage.get("paused")
     musiq_state["shuffle"] = storage.get("shuffle")
     musiq_state["repeat"] = storage.get("repeat")
