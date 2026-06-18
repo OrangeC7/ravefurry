@@ -478,12 +478,29 @@ help        show this help and exit""",
                     moderator_password,
                 )
 
+                waitress_command = (
+                    "import os; "
+                    "os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings'); "
+                    "from waitress import serve; "
+                    "from main.wsgi import application; "
+                    "serve("
+                    "application, "
+                    "host='127.0.0.1', "
+                    "port=8080, "
+                    "threads=6, "
+                    "connection_limit=100, "
+                    "channel_timeout=60, "
+                    "expose_tracebacks=False"
+                    ")"
+                )
+
                 server = subprocess.Popen(
-                    [sys.executable, "manage.py", "runserver", "127.0.0.1:8080", "--noreload", "--nothreading"],
+                    [sys.executable, "-c", waitress_command],
                     env={
                         **os.environ,
                         "DJANGO_DEBUG": "1",
                         "PYTHONUNBUFFERED": "1",
+                        "FURATIC_LOCAL_HTTP_SERVER": "1",
                         **additional_env,
                     },
                     stdin=subprocess.DEVNULL,
