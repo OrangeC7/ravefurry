@@ -386,7 +386,7 @@ if not os.path.exists(os.path.join(BASE_DIR, "static/admin")):
 # channels
 ASGI_APPLICATION = "main.routing.APPLICATION"
 
-if "runserver" in sys.argv:
+if "runserver" in sys.argv or strtobool(os.environ.get("FURATIC_LOCAL_HTTP_SERVER", "0")):
     CHANNEL_LAYERS = {
         "default": {
             "BACKEND": "channels.layers.InMemoryChannelLayer",
