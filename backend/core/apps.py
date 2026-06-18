@@ -38,7 +38,10 @@ class CoreConfig(AppConfig):
             else:
                 start_raveberry = strtobool(os.environ.get("RUN_MAIN", "0"))
         else:
-            start_raveberry = sys.argv[0].endswith("daphne")
+            start_raveberry = (
+                sys.argv[0].endswith("daphne")
+                or strtobool(os.environ.get("FURATIC_LOCAL_HTTP_SERVER", "0"))
+            )
 
         if conf.TESTING:
             from core.musiq import controller
