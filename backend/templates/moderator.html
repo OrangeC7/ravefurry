@@ -542,6 +542,130 @@
           animation: none;
         }
       }
+
+      .connection-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background:
+          radial-gradient(circle at 50% 20%, rgba(0, 142, 248, 0.18), transparent 34%),
+          radial-gradient(circle at 18% 82%, rgba(200, 0, 224, 0.18), transparent 32%),
+          rgba(3, 4, 11, 0.72);
+        -webkit-backdrop-filter: blur(24px) saturate(118%);
+        backdrop-filter: blur(24px) saturate(118%);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+          opacity 420ms cubic-bezier(0.16, 1, 0.3, 1),
+          visibility 420ms cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .connection-overlay.visible {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+      }
+
+      .connection-card {
+        width: min(100%, 560px);
+        display: grid;
+        justify-items: center;
+        gap: 16px;
+        text-align: center;
+        padding: 30px;
+        border-radius: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.025)),
+          rgba(7, 10, 22, 0.58);
+        box-shadow: 0 34px 110px rgba(0, 0, 0, 0.52);
+        transform: translate3d(0, 26px, 0) scale(0.975);
+        filter: blur(18px);
+        opacity: 0;
+        transition:
+          transform 540ms cubic-bezier(0.16, 1, 0.3, 1),
+          filter 540ms cubic-bezier(0.16, 1, 0.3, 1),
+          opacity 540ms cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .connection-overlay.visible .connection-card {
+        transform: translate3d(0, 0, 0) scale(1);
+        filter: blur(0);
+        opacity: 1;
+      }
+
+      .connection-mark {
+        width: 72px;
+        height: 72px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        border: 1px solid rgba(0, 142, 248, 0.30);
+        background:
+          radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.24), transparent 24%),
+          linear-gradient(135deg, rgba(0, 142, 248, 0.22), rgba(200, 0, 224, 0.14));
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+          0 20px 60px rgba(0, 142, 248, 0.14);
+      }
+
+      .connection-spinner {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        border: 2px solid rgba(255, 255, 255, 0.18);
+        border-top-color: rgba(238, 244, 255, 0.92);
+        animation: moderatorConnectionSpin 980ms linear infinite;
+      }
+
+      .connection-overlay.restored .connection-spinner,
+      .connection-overlay.login-required .connection-spinner {
+        animation: none;
+        border-color: rgba(74, 227, 0, 0.38);
+        border-top-color: rgba(74, 227, 0, 0.95);
+        box-shadow: 0 0 26px rgba(74, 227, 0, 0.16);
+      }
+
+      .connection-title {
+        margin: 0;
+        font-size: clamp(26px, 4vw, 42px);
+        line-height: 1;
+        letter-spacing: -0.055em;
+      }
+
+      .connection-copy {
+        margin: 0;
+        max-width: 440px;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .connection-detail {
+        min-height: 22px;
+        color: rgba(238, 244, 255, 0.52);
+        font-size: 13px;
+      }
+
+      @keyframes moderatorConnectionSpin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .connection-overlay,
+        .connection-card {
+          transition: none;
+        }
+
+        .connection-spinner {
+          animation: none;
+        }
+      }
       
       @media (max-width: 980px) {
         .hero {
@@ -826,8 +950,32 @@
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+    <div
+      id="connection-overlay"
+      class="connection-overlay"
+      role="alertdialog"
+      aria-live="assertive"
+      aria-modal="true"
+      aria-labelledby="connection-overlay-title"
+      aria-describedby="connection-overlay-copy"
+    >
+      <div class="connection-card">
+        <div class="connection-mark" aria-hidden="true">
+          <div class="connection-spinner"></div>
+        </div>
+        <h1 id="connection-overlay-title" class="connection-title">Reconnecting</h1>
+        <p id="connection-overlay-copy" class="connection-copy">
+          Reconnecting to the server.
+        </p>
+        <div id="connection-overlay-detail" class="connection-detail">
+          This usually takes a few seconds.
+        </div>
+      </div>
+    </div>
+
     <script>
       const CSRF_TOKEN = "{{ csrf_token }}";
+      const MODERATOR_LOGIN_URL = "{{ moderator_login_url }}";
       const MODERATOR_STATE_URL = "{{ moderator_state_url }}";
       const MODERATOR_REMOVE_SONG_URL = "{{ moderator_remove_song_url }}";
       const MODERATOR_BAN_IP_URL = "{{ moderator_ban_ip_url }}";
@@ -851,6 +999,8 @@
       }
 
       function showToast(message, tone) {
+        if (message === "__furatic_handled__") return;
+
         const toast = document.getElementById("toast");
         toast.textContent = message;
         toast.className = "toast visible" + (tone ? " " + tone : "");
@@ -858,6 +1008,125 @@
         showToast._timer = window.setTimeout(function () {
           toast.className = "toast";
         }, 3400);
+      }
+
+      const FURATIC_HANDLED_ERROR = "__furatic_handled__";
+      let connectionOverlayMode = "";
+      let reloadAfterRestoreScheduled = false;
+      let loginRedirectScheduled = false;
+
+      function buildModeratorLoginUrl() {
+        const next = window.location.pathname + window.location.search;
+        return MODERATOR_LOGIN_URL + "?next=" + encodeURIComponent(next || "/moderator/");
+      }
+
+      function setConnectionOverlay(mode, title, copy, detail) {
+        const overlay = document.getElementById("connection-overlay");
+        const titleElement = document.getElementById("connection-overlay-title");
+        const copyElement = document.getElementById("connection-overlay-copy");
+        const detailElement = document.getElementById("connection-overlay-detail");
+
+        connectionOverlayMode = mode;
+        overlay.className = "connection-overlay visible " + mode;
+        titleElement.textContent = title;
+        copyElement.textContent = copy;
+        detailElement.textContent = detail || "";
+      }
+
+      function hideConnectionOverlay() {
+        const overlay = document.getElementById("connection-overlay");
+        connectionOverlayMode = "";
+        overlay.className = "connection-overlay";
+      }
+
+      function showServerRestartOverlay(detail) {
+        setConnectionOverlay(
+          "server-down",
+          "Server restarting",
+          "The local Furatic web server is temporarily unavailable and is trying to restart itself.",
+          detail || "Connection should be restored in just a few moments."
+        );
+      }
+
+      function showConnectionRestoredOverlay() {
+        setConnectionOverlay(
+          "restored",
+          "Connection restored",
+          "Furatic is back online. The moderator page will reload now so everything is perfectly in sync.",
+          "Reloading in a moment."
+        );
+
+        if (!reloadAfterRestoreScheduled) {
+          reloadAfterRestoreScheduled = true;
+          window.setTimeout(function () {
+            window.location.reload();
+          }, 1800);
+        }
+      }
+
+      function showLoginRequiredOverlay() {
+        setConnectionOverlay(
+          "login-required",
+          "Session expired",
+          "Your moderator session is no longer active. You will be asked to log in again.",
+          "Opening the Furatic login screen in a moment."
+        );
+
+        if (!loginRedirectScheduled) {
+          loginRedirectScheduled = true;
+          window.setTimeout(function () {
+            window.location.href = buildModeratorLoginUrl();
+          }, 2200);
+        }
+      }
+
+      function throwHandled() {
+        throw new Error(FURATIC_HANDLED_ERROR);
+      }
+
+      async function readTextSafely(response) {
+        try {
+          return await response.text();
+        } catch (_error) {
+          return "";
+        }
+      }
+
+      async function parseModeratorJsonResponse(response) {
+        const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+
+        if (response.status === 401 || response.status === 403) {
+          showLoginRequiredOverlay();
+          throwHandled();
+        }
+
+        if (!response.ok) {
+          if (response.status === 502 || response.status === 503 || response.status === 504) {
+            showServerRestartOverlay("The web process is recovering. Furatic will reconnect automatically.");
+            throwHandled();
+          }
+
+          const text = await readTextSafely(response);
+          throw new Error(text || "Request failed");
+        }
+
+        if (!contentType.includes("application/json")) {
+          showLoginRequiredOverlay();
+          throwHandled();
+        }
+
+        const data = await response.json();
+        if (data && data.loginRequired) {
+          showLoginRequiredOverlay();
+          throwHandled();
+        }
+
+        return data;
+      }
+
+      function handleModeratorRequestError(error, fallbackMessage) {
+        if (error && error.message === FURATIC_HANDLED_ERROR) return;
+        showToast((error && error.message) || fallbackMessage || "Request failed.", "warn");
       }
 
       const IP_COLOR_HUES = [
@@ -1179,22 +1448,23 @@
       }
 
       async function postMultipart(url, formData) {
-        const response = await fetch(url, {
-          method: "POST",
-          credentials: "same-origin",
-          headers: {
-            "X-CSRFToken": CSRF_TOKEN,
-            "X-Requested-With": "XMLHttpRequest"
-          },
-          body: formData
-        });
+        try {
+          const response = await fetch(url, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "X-CSRFToken": CSRF_TOKEN,
+              "X-Requested-With": "XMLHttpRequest"
+            },
+            body: formData
+          });
 
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(text || "Request failed");
+          return await parseModeratorJsonResponse(response);
+        } catch (error) {
+          if (error && error.message === FURATIC_HANDLED_ERROR) throw error;
+          showServerRestartOverlay("The request could not reach the web server. Furatic is reconnecting automatically.");
+          throwHandled();
         }
-
-        return response.json();
       }
 
       async function addBlocklist() {
@@ -1264,22 +1534,25 @@
       
       async function postForm(url, data) {
         const body = new URLSearchParams(data);
-        const response = await fetch(url, {
-          method: "POST",
-          credentials: "same-origin",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-            "X-CSRFToken": CSRF_TOKEN,
-            "X-Requested-With": "XMLHttpRequest"
-          },
-          body: body.toString(),
-        });
 
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(text || "Request failed");
+        try {
+          const response = await fetch(url, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+              "X-CSRFToken": CSRF_TOKEN,
+              "X-Requested-With": "XMLHttpRequest"
+            },
+            body: body.toString(),
+          });
+
+          return await parseModeratorJsonResponse(response);
+        } catch (error) {
+          if (error && error.message === FURATIC_HANDLED_ERROR) throw error;
+          showServerRestartOverlay("The action could not reach the web server. Furatic is reconnecting automatically.");
+          throwHandled();
         }
-        return response.json();
       }
 
       let requestSettingsDirty = false;
@@ -1468,23 +1741,33 @@
 
       let refreshInFlight = false;
       async function refreshState() {
-        if (refreshInFlight) {
+        if (refreshInFlight || reloadAfterRestoreScheduled || loginRedirectScheduled) {
           return;
         }
+
         refreshInFlight = true;
+
         try {
           const response = await fetch(MODERATOR_STATE_URL, {
             credentials: "same-origin",
             cache: "no-store",
             headers: { "X-Requested-With": "XMLHttpRequest" },
           });
-          if (!response.ok) {
-            throw new Error(await response.text());
-          }
-          const data = await response.json();
+
+          const data = await parseModeratorJsonResponse(response);
           renderState(data);
+
+          if (connectionOverlayMode === "server-down") {
+            showConnectionRestoredOverlay();
+          } else if (!connectionOverlayMode) {
+            hideConnectionOverlay();
+          }
         } catch (error) {
-          showToast(error.message || "Unable to refresh moderator state.", "warn");
+          if (error && error.message === FURATIC_HANDLED_ERROR) {
+            return;
+          }
+
+          showServerRestartOverlay("Furatic is checking the connection and will reload automatically when it is restored.");
         } finally {
           refreshInFlight = false;
         }
@@ -1604,7 +1887,7 @@
             );
           }
         } catch (error) {
-          showToast(error.message || "Action failed.", "warn");
+          handleModeratorRequestError(error, "Action failed.");
         } finally {
           button.disabled = false;
         }
@@ -1612,19 +1895,19 @@
 
       document.getElementById("event-mode-button").addEventListener("click", function () {
         setMode("event").catch(function (error) {
-          showToast(error.message || "Unable to switch mode.", "warn");
+          handleModeratorRequestError(error, "Unable to switch mode.");
         });
       });
       
       document.getElementById("closing-mode-button").addEventListener("click", function () {
         setMode("closing").catch(function (error) {
-          showToast(error.message || "Unable to switch mode.", "warn");
+          handleModeratorRequestError(error, "Unable to switch mode.");
         });
       });
       
       document.getElementById("afterhours-mode-button").addEventListener("click", function () {
         setMode("afterhours").catch(function (error) {
-          showToast(error.message || "Unable to switch mode.", "warn");
+          handleModeratorRequestError(error, "Unable to switch mode.");
         });
       });
 
@@ -1640,7 +1923,7 @@
             input.value = "";
           })
           .catch(function (error) {
-            showToast(error.message || "Unable to ban IP.", "warn");
+            handleModeratorRequestError(error, "Unable to ban IP.");
           });
       });
 
@@ -1663,7 +1946,7 @@
             input.value = "";
           })
           .catch(function (error) {
-            showToast(error.message || "Unable to whitelist IP.", "warn");
+            handleModeratorRequestError(error, "Unable to whitelist IP.");
           });
       });
       
@@ -1676,7 +1959,7 @@
       
       document.getElementById("add-blocklist-button").addEventListener("click", function () {
         addBlocklist().catch(function (error) {
-          showToast(error.message || "Unable to add blocklist.", "warn");
+          handleModeratorRequestError(error, "Unable to add blocklist.");
         });
       });
 
@@ -1690,7 +1973,7 @@
       
       document.getElementById("save-request-settings-button").addEventListener("click", function () {
         saveRequestSettings().catch(function (error) {
-          showToast(error.message || "Unable to save request controls.", "warn");
+          handleModeratorRequestError(error, "Unable to save request controls.");
         });
       });
       
