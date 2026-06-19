@@ -354,6 +354,17 @@ help        show this help and exit""",
         self,
         additional_env: Dict[str, str],
     ) -> subprocess.Popen:
+        while not self._wait_for_database_ready(timeout=30):
+            message = (
+                "PostgreSQL is not accepting connections yet. "
+                "Waiting before starting web server..."
+            )
+            if self.console_lock is not None:
+                self._console_message(message)
+            else:
+                print(message, flush=True)
+            time.sleep(2)
+
         return subprocess.Popen(
             [sys.executable, "-c", self._waitress_command()],
             env={
@@ -384,12 +395,70 @@ help        show this help and exit""",
     def _web_server_healthy(self) -> bool:
         try:
             with urllib.request.urlopen(
-                "http://127.0.0.1:8080/api/site-mode/",
+                "http://127.0.0.1:8080/_healthz/",
                 timeout=3,
             ) as response:
                 return 200 <= response.status < 500
         except (OSError, urllib.error.URLError, TimeoutError):
             return False
+
+    def _database_healthy(self) -> bool:
+        host = os.environ.get("POSTGRES_HOST", "127.0.0.1")
+        port = os.environ.get("POSTGRES_PORT", "54329")
+        database = os.environ.get("POSTGRES_DB", "raveberry")
+
+        try:
+            result = subprocess.run(
+                ["pg_isready", "-h", host, "-p", port, "-d", database],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=3,
+                check=False,
+            )
+            return result.returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            return False
+
+    def _start_local_database_if_possible(self) -> bool:
+        pgdata = os.environ.get("RAVEBERRY_PGDATA", "")
+        pglog = os.environ.get("RAVEBERRY_PGLOG", "")
+        port = os.environ.get("POSTGRES_PORT", "54329")
+
+        if not pgdata:
+            return False
+
+        command = ["pg_ctl", "-D", pgdata]
+        if pglog:
+            command.extend(["-l", pglog])
+        command.extend(["-o", f"-p {port}", "-w", "start"])
+
+        try:
+            result = subprocess.run(
+                command,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=20,
+                check=False,
+            )
+            return result.returncode == 0 or self._database_healthy()
+        except (OSError, subprocess.SubprocessError):
+            return False
+
+    def _wait_for_database_ready(self, timeout: float = 30.0) -> bool:
+        deadline = time.monotonic() + timeout
+        attempted_start = False
+
+        while time.monotonic() < deadline:
+            if self._database_healthy():
+                return True
+
+            if not attempted_start:
+                attempted_start = True
+                self._start_local_database_if_possible()
+
+            time.sleep(0.5)
+
+        return self._database_healthy()
 
     def _wait_for_web_server_ready(
         self,
