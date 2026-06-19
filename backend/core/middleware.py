@@ -76,6 +76,9 @@ class DatabaseConnectionCleanupMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        if request.path == "/_healthz/":
+            return HttpResponse("ok", content_type="text/plain")
+
         close_old_connections()
         try:
             return self.get_response(request)
