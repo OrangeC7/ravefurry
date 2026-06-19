@@ -137,6 +137,9 @@ defaults = {
     "last_screen_program": "Disabled",
     "initial_resolution": (0, 0),
     "dynamic_resolution": False,
+    "site_mode": "event",
+    "maintenance_restart_song_interval": 50,
+    "songs_since_maintenance_restart": 0,
 }
 
 # Settings change very rarely, cache them to reduce database roundtrips.
