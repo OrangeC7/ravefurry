@@ -224,12 +224,12 @@ class Playback:
                     queue_changed.clear()
                     return None, False
                 song_id = song.id
-                queue.remove(song.id)
+                queue.remove(song.id, snapshot=False)
         elif storage.get("shuffle"):
             confirmed = queue.confirmed()
             index = random.randint(0, confirmed.count() - 1)
             song_id = confirmed[index].id
-            song = queue.remove(song_id)
+            song = queue.remove(song_id, snapshot=False)
         else:
             # move the first song in the queue into the current song
             song_id, song = queue.dequeue()
