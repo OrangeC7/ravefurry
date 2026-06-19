@@ -306,7 +306,11 @@ help        show this help and exit""",
         sys.stdout.flush()
 
     def _draw_status_line(self) -> None:
-        mode = self._get_site_mode()
+        try:
+            mode = self._get_site_mode()
+        except Exception:  # pylint: disable=broad-except
+            mode = "event"
+    
         sys.stdout.write("\r" + self._status_text(mode))
         sys.stdout.flush()
 
@@ -522,6 +526,7 @@ help        show this help and exit""",
 
         bad_health_checks = 0
         last_health_check = 0.0
+        last_database_check = 0.0
 
         while True:
             if server.poll() is not None:
@@ -554,6 +559,33 @@ help        show this help and exit""",
                 last_health_check = time.monotonic()
                 self._wait_for_web_server_ready(server)
                 continue
+
+            now = time.monotonic()
+            if now - last_database_check >= 5:
+                last_database_check = now
+
+                if not self._database_healthy():
+                    self._console_message(
+                        "PostgreSQL is not accepting connections. "
+                        "Restarting local database and web server..."
+                    )
+
+                    self._stop_windows_web_server(server)
+                    self._clear_restart_request()
+
+                    while not self._wait_for_database_ready(timeout=30):
+                        self._console_message(
+                            "PostgreSQL is still unavailable. Retrying database recovery..."
+                        )
+                        time.sleep(2)
+
+                    server = self._start_windows_web_server(additional_env)
+                    self._start_output_thread(server)
+                    bad_health_checks = 0
+                    last_health_check = time.monotonic()
+                    last_database_check = time.monotonic()
+                    self._wait_for_web_server_ready(server)
+                    continue
 
             now = time.monotonic()
             if now - last_health_check >= 10:
