@@ -58,7 +58,7 @@ defaults = {
     "request_cooldown_seconds": 0.0,
     "max_song_duration_seconds": 300.0,
     "site_mode": "event",
-    "maintenance_restart_song_interval": 50,
+    "maintenance_restart_song_interval": 2,
     "songs_since_maintenance_restart": 0,
     "max_download_size": 0.0,
     "max_playlist_items": 10,
