@@ -17,7 +17,7 @@ from django.contrib.auth.views import redirect_to_login
 from django.contrib.sessions.models import Session
 from django.core.handlers.wsgi import WSGIRequest
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
+from django.http import JsonResponse, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.utils import timezone
 
 from redis.exceptions import RedisError
@@ -222,10 +222,41 @@ def moderator_required(
     """Require an authenticated moderator or admin for the wrapped view."""
 
     def _decorator(request: WSGIRequest, *args, **kwargs) -> HttpResponse:
+        is_ajax_request = (
+            request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            or request.path.startswith("/api/")
+            or request.path.startswith("/ajax/")
+        )
+
         if not getattr(request, "user", None) or not request.user.is_authenticated:
-            return redirect_to_login(request.get_full_path())
+            if is_ajax_request:
+                return JsonResponse(
+                    {
+                        "loginRequired": True,
+                        "loginUrl": "/moderator-login/",
+                        "message": "Your moderator session has expired.",
+                    },
+                    status=401,
+                )
+
+            return redirect_to_login(
+                request.get_full_path(),
+                login_url="/moderator-login/",
+            )
+
         if not can_moderate(request.user):
+            if is_ajax_request:
+                return JsonResponse(
+                    {
+                        "loginRequired": True,
+                        "loginUrl": "/moderator-login/",
+                        "message": "Moderator access is required.",
+                    },
+                    status=403,
+                )
+
             return HttpResponseForbidden("Moderator access required")
+
         return func(request, *args, **kwargs)
 
     return wraps(func)(_decorator)
