@@ -55,4 +55,7 @@ def restore_settings() -> None:
     data = _read_state()
     for key in PERSISTED_SETTING_KEYS:
         if key in data:
-            storage.put(key, data[key])
+            try:
+                storage.put(key, data[key])
+            except Exception as error:  # pylint: disable=broad-except
+                logger.warning("failed to restore persisted setting %s: %s", key, error)
