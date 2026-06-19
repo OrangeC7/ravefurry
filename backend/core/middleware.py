@@ -5,7 +5,7 @@ import logging
 
 from core import audit_log, ip_screening, site_mode, user_manager
 
-from django.db import close_old_connections, connections
+from django.db import DatabaseError, OperationalError, close_old_connections, connections
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +82,19 @@ class DatabaseConnectionCleanupMiddleware:
         close_old_connections()
         try:
             return self.get_response(request)
+        except (OperationalError, DatabaseError) as error:
+            logger.warning(
+                "database unavailable while handling %s %s: %s",
+                request.method,
+                request.get_full_path(),
+                error,
+            )
+            connections.close_all()
+            return HttpResponse(
+                "FURATIC is recovering its local database connection. Please retry shortly.",
+                status=503,
+                content_type="text/plain",
+            )
         finally:
             connections.close_all()
 
