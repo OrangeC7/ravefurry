@@ -14,7 +14,7 @@ from django.db import connection, transaction
 from django.db.models import Case, F, IntegerField, Value, When
 from django.utils import timezone
 
-from core import models, redis, user_manager
+from core import models, redis, user_manager, playback_state_backup
 from core.lights import controller as lights_controller
 from core.musiq import musiq, player
 from core.settings import storage
@@ -61,12 +61,6 @@ def start() -> None:
     redis.put("backup_playing", False)
     redis.put("operator_command", "")
     redis.put("stop_playback_loop", False)
-
-    # if there is no queued song at startup, don't recover an old CurrentSong
-    if queue.count() == 0 and CurrentSong.objects.exists():
-        CurrentSong.objects.all().delete()
-        storage.put("paused", False)
-        redis.put("paused", False)
 
     _handle_buzzer.delay()
     _loop.delay()
@@ -158,6 +152,7 @@ class Playback:
             redis.put("playing", False)
             redis.put("backup_playing", False)
 
+            playback_state_backup.snapshot()
             musiq.update_state()
             return command
 
@@ -268,6 +263,7 @@ class Playback:
             requester_session_key=song.requester_session_key,
         )
 
+        playback_state_backup.snapshot()
         handle_autoplay()
 
         try:
@@ -366,6 +362,7 @@ class Playback:
                     seconds=redis.get("alarm_duration")
                 )
                 current_song.save()
+                playback_state_backup.snapshot()
 
                 return False
         return not error
@@ -468,6 +465,7 @@ class Playback:
             current_song.delete()
 
             self._song_finished(current_song)
+            playback_state_backup.snapshot()
 
             if runtime_restart.record_completed_song():
                 try:
