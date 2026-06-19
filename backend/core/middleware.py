@@ -17,6 +17,7 @@ _BAN_ALWAYS_ALLOWED_PREFIXES = (
 _MODERATOR_RECOVERY_PREFIXES = (
     "/admin/",
     "/moderator/",
+    "/moderator-login/",
     "/api/moderator/",
     "/accounts/",
     "/login/",
@@ -28,6 +29,7 @@ _ALLOWED_PREFIXES = (
     "/afterhours/",
     "/admin/",
     "/moderator/",
+    "/moderator-login/",
     "/api/moderator/",
     "/api/site-mode/",
     "/accounts/",
