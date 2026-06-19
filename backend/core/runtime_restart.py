@@ -26,6 +26,11 @@ def request_between_songs_restart() -> None:
     # if the launcher is not supervising for some reason.
     redis.put(RESTART_REQUEST_KEY, RESTART_REASON_BETWEEN_SONGS, expire=60)
 
+def clear_restart_request() -> None:
+    try:
+        redis.connection.delete(RESTART_REQUEST_KEY)
+    except Exception as error:  # pylint: disable=broad-except
+        logger.warning("failed to clear restart request: %s", error)
 
 def record_completed_song() -> None:
     mode = site_mode.get_mode()
