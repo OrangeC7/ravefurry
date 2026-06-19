@@ -62,6 +62,9 @@ class CoreConfig(AppConfig):
 
             logging.info("starting raveberry")
 
+            from core import runtime_persistence
+            runtime_persistence.restore_settings()
+            
             redis.start()
             tasks.start()
 
