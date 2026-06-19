@@ -16,7 +16,7 @@ from django.http.response import HttpResponse, HttpResponseBadRequest
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
-from core import audit_log, models, redis, user_manager
+from core import audit_log, models, redis, user_manager, playback_state_backup
 from core.musiq import musiq, playback, player
 from core.settings import storage
 from core.util import extract_value
@@ -59,6 +59,7 @@ def restart(_request: WSGIRequest) -> None:
         current_song = models.CurrentSong.objects.get()
         current_song.created = timezone.now()
         current_song.save()
+        playback_state_backup.snapshot()
     except models.CurrentSong.DoesNotExist:
         pass
 
@@ -73,6 +74,7 @@ def seek_backward(_request: WSGIRequest) -> None:
         current_song.created += datetime.timedelta(seconds=SEEK_DISTANCE)
         current_song.created = min(current_song.created, now)
         current_song.save()
+        playback_state_backup.snapshot()
     except models.CurrentSong.DoesNotExist:
         pass
 
@@ -90,8 +92,10 @@ def _resume() -> None:
         current_song.save()
     except models.CurrentSong.DoesNotExist:
         pass
+
     storage.put("paused", False)
     redis.put("paused", False)
+    playback_state_backup.snapshot()
 
 @control
 def play(_request: WSGIRequest) -> None:
@@ -108,8 +112,10 @@ def _pause() -> None:
         current_song.save()
     except models.CurrentSong.DoesNotExist:
         pass
+
     storage.put("paused", True)
     redis.put("paused", True)
+    playback_state_backup.snapshot()
 
 
 @control
@@ -127,6 +133,7 @@ def seek_forward(_request: WSGIRequest) -> None:
         current_song = models.CurrentSong.objects.get()
         current_song.created -= datetime.timedelta(seconds=SEEK_DISTANCE)
         current_song.save()
+        playback_state_backup.snapshot()
     except models.CurrentSong.DoesNotExist:
         pass
 
@@ -140,6 +147,7 @@ def _skip() -> None:
             seconds=current_song.duration
         )
         current_song.save()
+        playback_state_backup.snapshot()
     except models.CurrentSong.DoesNotExist:
         pass
 
@@ -217,9 +225,12 @@ def remove_all(request: WSGIRequest) -> HttpResponse:
     """Empties the queue. Only admin is permitted to do this."""
     if not user_manager.is_admin(request.user):
         return HttpResponseForbidden()
+
     with transaction.atomic():
         user_manager.clear_queue_slots()
         playback.queue.all().delete()
+
+    playback_state_backup.snapshot()
     return HttpResponse()
 
 
@@ -389,7 +400,12 @@ def vote(request: WSGIRequest) -> HttpResponse:
     if storage.get("color_indication") != storage.Privileges.nobody:
         user_manager.register_vote(request, key, amount)
 
-    models.CurrentSong.objects.filter(queue_key=key).update(votes=F("votes") + amount)
+    current_vote_updated = models.CurrentSong.objects.filter(queue_key=key).update(
+        votes=F("votes") + amount
+    )
+    if current_vote_updated:
+        playback_state_backup.snapshot()
+
     try:
         current_song = models.CurrentSong.objects.get()
         if (
