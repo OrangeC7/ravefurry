@@ -32,6 +32,7 @@ defaults = {
     "paused": False,
     "playback_error": False,
     "stop_playback_loop": False,
+    "web_restart_requested": "",
     "alarm_playing": False,
     "alarm_requested": False,
     "alarm_duration": 10.0,
