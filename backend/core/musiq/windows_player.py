@@ -84,6 +84,8 @@ class WindowsPlayer(player.Player):
 
         self.instance = vlc.Instance()
         self.media_player = self.instance.media_player_new()
+        self._last_state_check = 0.0
+        self._last_stop_waiting = False
         _INSTANCE = self
 
     def _set_media(self, uri: str) -> None:
@@ -95,6 +97,9 @@ class WindowsPlayer(player.Player):
         uri = song.internal_url or song.stream_url or song.external_url
         if not uri:
             raise PlaybackError("No playable URI")
+
+        self._last_state_check = 0.0
+        self._last_stop_waiting = False
 
         self._set_media(uri)
 
@@ -115,12 +120,24 @@ class WindowsPlayer(player.Player):
             self.media_player.pause()
 
     def should_stop_waiting(self, previous_error: bool) -> bool:
+        # The playback loop calls this every 0.1s. On Windows, repeatedly
+        # crossing into libVLC for get_state() can accumulate Thread handles
+        # over long events. Raveberry already has duration-based end detection,
+        # so VLC only needs to be polled occasionally as a health/early-stop check.
+        now = time.monotonic()
+        interval = 1.0 if previous_error else 5.0
+
+        if self._last_state_check and now - self._last_state_check < interval:
+            return self._last_stop_waiting
+
+        self._last_state_check = now
         state = self.media_player.get_state()
-        return state in (
+        self._last_stop_waiting = state in (
             vlc.State.Ended,
             vlc.State.Stopped,
             vlc.State.Error,
         )
+        return self._last_stop_waiting
 
     def play_alarm(self, interrupt: bool, alarm_path: str) -> None:
         if interrupt:
