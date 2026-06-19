@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Furatic Moderator Login</title>
+    <meta name="theme-color" content="#050816">
+    <link rel="icon" href="https://raw.githubusercontent.com/OrangeC7/ravefurry/refs/heads/master/favicon.ico" type="image/x-icon">
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #050816;
+        --bg-top: #091022;
+        --bg-bottom: #03040b;
+        --text: #eef4ff;
+        --muted: rgba(238, 244, 255, 0.70);
+        --line: rgba(255, 255, 255, 0.14);
+        --line-strong: rgba(255, 255, 255, 0.22);
+        --panel: rgba(7, 10, 22, 0.42);
+        --shadow: 0 28px 90px rgba(0, 0, 0, 0.48);
+        --blue: rgba(0, 142, 248, 0.42);
+        --pink: rgba(200, 0, 224, 0.22);
+        --green: rgba(74, 227, 0, 0.20);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+      }
+
+      body {
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        padding: 20px;
+        background:
+          radial-gradient(circle at 50% 0%, rgba(0, 142, 248, 0.16), transparent 34%),
+          radial-gradient(circle at 16% 78%, rgba(200, 0, 224, 0.18), transparent 32%),
+          radial-gradient(circle at 88% 72%, rgba(74, 227, 0, 0.12), transparent 28%),
+          linear-gradient(180deg, var(--bg-top), var(--bg) 58%, var(--bg-bottom));
+        color: var(--text);
+        font-family: Inter, Roboto, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: -40%;
+        background:
+          conic-gradient(
+            from 180deg,
+            transparent,
+            rgba(0, 142, 248, 0.12),
+            transparent,
+            rgba(200, 0, 224, 0.10),
+            transparent
+          );
+        animation: furaticAmbientSpin 18s linear infinite;
+        opacity: 0.58;
+        filter: blur(34px);
+      }
+
+      .login-shell {
+        position: relative;
+        z-index: 1;
+        width: min(100%, 440px);
+        display: grid;
+        gap: 18px;
+        animation: furaticLoginEnter 1100ms cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+
+      .brand {
+        display: grid;
+        justify-items: center;
+        gap: 14px;
+        text-align: center;
+      }
+
+      .brand img {
+        display: block;
+        width: min(100%, 340px);
+        height: auto;
+        filter:
+          drop-shadow(0 18px 40px rgba(0, 0, 0, 0.32))
+          drop-shadow(0 0 20px rgba(0, 142, 248, 0.14));
+      }
+
+      .brand p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .panel {
+        border-radius: 28px;
+        border: 1px solid var(--line);
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025)),
+          var(--panel);
+        box-shadow: var(--shadow);
+        -webkit-backdrop-filter: blur(24px) saturate(122%);
+        backdrop-filter: blur(24px) saturate(122%);
+        padding: 22px;
+      }
+
+      form {
+        display: grid;
+        gap: 14px;
+      }
+
+      .field {
+        display: grid;
+        gap: 8px;
+      }
+
+      label {
+        color: rgba(238, 244, 255, 0.78);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      input[type="text"],
+      input[type="password"] {
+        width: 100%;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.07);
+        color: var(--text);
+        border-radius: 16px;
+        padding: 14px 15px;
+        font: inherit;
+        outline: none;
+        transition:
+          border-color 180ms ease,
+          background 180ms ease,
+          box-shadow 180ms ease,
+          transform 180ms ease;
+      }
+
+      input[type="text"]:focus,
+      input[type="password"]:focus {
+        border-color: rgba(0, 142, 248, 0.52);
+        background: rgba(255, 255, 255, 0.09);
+        box-shadow: 0 0 0 5px rgba(0, 142, 248, 0.13);
+        transform: translateY(-1px);
+      }
+
+      .submit {
+        appearance: none;
+        border: 1px solid rgba(0, 142, 248, 0.34);
+        background:
+          linear-gradient(135deg, rgba(0, 142, 248, 0.28), rgba(200, 0, 224, 0.16)),
+          rgba(255, 255, 255, 0.06);
+        color: var(--text);
+        border-radius: 16px;
+        padding: 14px 16px;
+        font: inherit;
+        font-weight: 800;
+        cursor: pointer;
+        transition:
+          transform 180ms ease,
+          border-color 180ms ease,
+          background 180ms ease,
+          box-shadow 180ms ease;
+      }
+
+      .submit:hover {
+        transform: translateY(-1px);
+        border-color: rgba(0, 142, 248, 0.52);
+        box-shadow: 0 18px 50px rgba(0, 142, 248, 0.12);
+      }
+
+      .submit:active {
+        transform: translateY(0);
+      }
+
+      .error {
+        border-radius: 16px;
+        border: 1px solid rgba(222, 104, 0, 0.32);
+        background: rgba(222, 104, 0, 0.10);
+        color: rgba(255, 237, 226, 0.94);
+        padding: 12px 14px;
+        line-height: 1.45;
+      }
+
+      .helper {
+        margin: 0;
+        color: var(--muted);
+        text-align: center;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      @keyframes furaticLoginEnter {
+        0% {
+          opacity: 0;
+          filter: blur(22px);
+          transform: translate3d(0, 24px, 0) scale(0.975);
+        }
+        100% {
+          opacity: 1;
+          filter: blur(0);
+          transform: translate3d(0, 0, 0) scale(1);
+        }
+      }
+
+      @keyframes furaticAmbientSpin {
+        from {
+          transform: rotate(0deg) scale(1);
+        }
+        to {
+          transform: rotate(360deg) scale(1.04);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        body::before,
+        .login-shell {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="login-shell">
+      <section class="brand">
+        <img src="https://raw.githubusercontent.com/OrangeC7/ravefurry/master/FuraticLogoWide.png" alt="Furatic logo">
+        <p>Moderator access</p>
+      </section>
+
+      <section class="panel">
+        <form method="post" action="">
+          {% csrf_token %}
+
+          {% if form.non_field_errors %}
+            <div class="error">
+              {% for error in form.non_field_errors %}
+                <div>{{ error }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          {% if next %}
+            <input type="hidden" name="next" value="{{ next }}">
+          {% endif %}
+
+          <div class="field">
+            <label for="id_username">Username</label>
+            <input
+              id="id_username"
+              name="username"
+              type="text"
+              autocomplete="username"
+              autofocus
+              required
+            >
+          </div>
+
+          <div class="field">
+            <label for="id_password">Password</label>
+            <input
+              id="id_password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              required
+            >
+          </div>
+
+          <button class="submit" type="submit">Log in</button>
+        </form>
+      </section>
+
+      <p class="helper">
+        Furatic will return you to moderator controls after authentication.
+      </p>
+    </main>
+  </body>
+</html>
