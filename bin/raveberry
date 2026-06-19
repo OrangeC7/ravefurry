@@ -391,12 +391,39 @@ help        show this help and exit""",
         except (OSError, urllib.error.URLError, TimeoutError):
             return False
 
+    def _wait_for_web_server_ready(
+        self,
+        server: subprocess.Popen,
+        timeout: float = 15.0,
+    ) -> bool:
+        deadline = time.monotonic() + timeout
+
+        while time.monotonic() < deadline:
+            if server.poll() is not None:
+                return False
+
+            if self._web_server_healthy():
+                return True
+
+            time.sleep(0.25)
+
+        return False
+
     def _read_restart_request(self) -> str:
         self._ensure_django()
         from core import redis  # pylint: disable=import-outside-toplevel
 
         try:
             return str(redis.connection.get("web_restart_requested") or "")
+        finally:
+            self._close_django_db_connections()
+
+    def _clear_restart_request(self) -> None:
+        self._ensure_django()
+        from core import runtime_restart  # pylint: disable=import-outside-toplevel
+
+        try:
+            runtime_restart.clear_restart_request()
         finally:
             self._close_django_db_connections()
 
@@ -430,10 +457,12 @@ help        show this help and exit""",
         while True:
             if server.poll() is not None:
                 self._console_message("Web server exited. Restarting...")
+                self._clear_restart_request()
                 server = self._start_windows_web_server(additional_env)
                 self._start_output_thread(server)
                 bad_health_checks = 0
-                time.sleep(1.0)
+                last_health_check = time.monotonic()
+                self._wait_for_web_server_ready(server)
                 continue
 
             restart_reason = self._read_restart_request()
@@ -441,11 +470,20 @@ help        show this help and exit""",
                 self._console_message(
                     f"Restarting web server safely: {restart_reason}"
                 )
+
+                # Keep the restart request set while stopping the old child so
+                # playback cannot start the next song in the old process.
                 self._stop_windows_web_server(server)
+
+                # The old child is gone now. Acknowledge the request before
+                # starting the new child, otherwise the supervisor will loop.
+                self._clear_restart_request()
+
                 server = self._start_windows_web_server(additional_env)
                 self._start_output_thread(server)
                 bad_health_checks = 0
-                time.sleep(1.0)
+                last_health_check = time.monotonic()
+                self._wait_for_web_server_ready(server)
                 continue
 
             now = time.monotonic()
@@ -460,10 +498,12 @@ help        show this help and exit""",
                             "Web server health check failed repeatedly. Restarting..."
                         )
                         self._stop_windows_web_server(server)
+                        self._clear_restart_request()
                         server = self._start_windows_web_server(additional_env)
                         self._start_output_thread(server)
                         bad_health_checks = 0
-                        time.sleep(1.0)
+                        last_health_check = time.monotonic()
+                        self._wait_for_web_server_ready(server)
                         continue
 
             if msvcrt.kbhit():
