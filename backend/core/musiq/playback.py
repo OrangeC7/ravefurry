@@ -404,6 +404,12 @@ class Playback:
         Takes a song from the queue and plays it until it is finished."""
 
         while True:
+            from core import runtime_restart  # pylint: disable=import-outside-toplevel
+
+            if runtime_restart.restart_requested():
+                time.sleep(0.25)
+                continue
+
             command = self._handle_operator_command()
             if command == "clear_for_event":
                 continue
@@ -462,6 +468,9 @@ class Playback:
             current_song.delete()
 
             self._song_finished(current_song)
+
+            from core import runtime_restart  # pylint: disable=import-outside-toplevel
+            runtime_restart.record_completed_song()
 
 
 @app.task
