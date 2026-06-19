@@ -65,6 +65,9 @@ class CoreConfig(AppConfig):
             from core import runtime_persistence
             runtime_persistence.restore_settings()
             
+            from core import playback_state_backup  # pylint: disable=import-outside-toplevel
+            playback_state_backup.restore_if_database_empty()
+            
             redis.start()
 
             from core import site_mode  # pylint: disable=import-outside-toplevel
