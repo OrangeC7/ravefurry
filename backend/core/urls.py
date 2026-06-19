@@ -2,6 +2,7 @@
 import inspect
 from typing import Any, List, Union
 
+from django.contrib.auth.views import LoginView
 from django.core.handlers.wsgi import WSGIRequest
 from django.urls import URLPattern, URLResolver, include, path
 from django.views.generic import RedirectView
@@ -35,6 +36,15 @@ urlpatterns: List[Union[URLPattern, URLResolver]] = [
     path("network-info/", network_info.index, name="network-info"),
     path("settings/", base.settings_disabled, name="settings"),
     path("moderator/", moderation.dashboard, name="moderator"),
+    path(
+        "moderator-login/",
+        LoginView.as_view(
+            template_name="furatic_login.html",
+            redirect_authenticated_user=True,
+            next_page="moderator",
+        ),
+        name="furatic-login",
+    ),
     path("accounts/", include("django.contrib.auth.urls")),
     path("login/", RedirectView.as_view(pattern_name="login", permanent=False)),
     path("logged-in/", base.logged_in, name="logged-in"),
