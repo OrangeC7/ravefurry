@@ -21,16 +21,9 @@ def restart_requested() -> bool:
         return False
 
 
-def clear_restart_request() -> None:
-    try:
-        redis.connection.delete(RESTART_REQUEST_KEY)
-    except Exception as error:  # pylint: disable=broad-except
-        logger.warning("failed to clear restart request: %s", error)
-
-
 def request_between_songs_restart() -> None:
-    # TTL prevents a stuck restart request from blocking playback forever if the
-    # launcher is not supervising for some reason.
+    # TTL prevents a stuck restart request from blocking playback forever
+    # if the launcher is not supervising for some reason.
     redis.put(RESTART_REQUEST_KEY, RESTART_REASON_BETWEEN_SONGS, expire=60)
 
 
