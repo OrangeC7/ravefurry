@@ -290,6 +290,42 @@ def ensure_builtin_moderator(
 
     return username, returned_password
 
+def ensure_builtin_admin(
+    password: Optional[str] = None,
+    rotate_if_unset: bool = False,
+) -> tuple[str, str]:
+    """Create/update the built-in admin account and optionally persist its password."""
+
+    UserModel = get_user_model()
+    username = "admin"
+
+    configured_password = (password or "").strip()
+    returned_password = ""
+
+    user, _ = UserModel.objects.get_or_create(
+        **{UserModel.USERNAME_FIELD: username},
+        defaults={
+            "is_staff": True,
+            "is_superuser": True,
+            "is_active": True,
+        },
+    )
+
+    user.is_staff = True
+    user.is_superuser = True
+    user.is_active = True
+
+    if configured_password:
+        user.set_password(configured_password)
+        returned_password = configured_password
+    elif rotate_if_unset:
+        returned_password = _persistent_builtin_password(username)
+        user.set_password(returned_password)
+
+    user.save(update_fields=["password", "is_staff", "is_superuser", "is_active"])
+
+    return username, returned_password
+
 
 def _banned_ips_storage_key() -> str:
     return str(storage.get("banned_ips"))
