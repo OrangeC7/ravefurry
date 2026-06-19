@@ -13,6 +13,8 @@ import secrets
 import string
 import threading
 import time
+import urllib.error
+import urllib.request
 
 
 class Raveberry:
@@ -329,9 +331,76 @@ help        show this help and exit""",
         print(f" Password: {password}")
         print("=" * 78 + "\n")
 
-    def _handle_windows_controls(self, server: subprocess.Popen) -> None:
-        import msvcrt  # pylint: disable=import-outside-toplevel
+    def _waitress_command(self) -> str:
+        return (
+            "import os; "
+            "os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings'); "
+            "from waitress import serve; "
+            "from django.contrib.staticfiles.handlers import StaticFilesHandler; "
+            "from main.wsgi import application as django_application; "
+            "application = StaticFilesHandler(django_application); "
+            "serve("
+            "application, "
+            "host='127.0.0.1', "
+            "port=8080, "
+            "threads=6, "
+            "connection_limit=100, "
+            "channel_timeout=60, "
+            "expose_tracebacks=False"
+            ")"
+        )
 
+    def _start_windows_web_server(
+        self,
+        additional_env: Dict[str, str],
+    ) -> subprocess.Popen:
+        return subprocess.Popen(
+            [sys.executable, "-c", self._waitress_command()],
+            env={
+                **os.environ,
+                "DJANGO_DEBUG": "1",
+                "PYTHONUNBUFFERED": "1",
+                "FURATIC_LOCAL_HTTP_SERVER": "1",
+                **additional_env,
+            },
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+
+    def _stop_windows_web_server(self, server: subprocess.Popen) -> None:
+        if server.poll() is not None:
+            return
+
+        server.terminate()
+        try:
+            server.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            server.kill()
+            server.wait(timeout=5)
+
+    def _web_server_healthy(self) -> bool:
+        try:
+            with urllib.request.urlopen(
+                "http://127.0.0.1:8080/api/site-mode/",
+                timeout=3,
+            ) as response:
+                return 200 <= response.status < 500
+        except (OSError, urllib.error.URLError, TimeoutError):
+            return False
+
+    def _read_restart_request(self) -> str:
+        self._ensure_django()
+        from core import redis  # pylint: disable=import-outside-toplevel
+
+        try:
+            return str(redis.connection.get("web_restart_requested") or "")
+        finally:
+            self._close_django_db_connections()
+
+    def _start_output_thread(self, server: subprocess.Popen) -> threading.Thread:
         def pump_output() -> None:
             assert server.stdout is not None
             for raw_line in server.stdout:
@@ -343,10 +412,60 @@ help        show this help and exit""",
 
         output_thread = threading.Thread(target=pump_output, daemon=True)
         output_thread.start()
+        return output_thread
 
+    def _supervise_windows_web_server(
+        self,
+        server: subprocess.Popen,
+        additional_env: Dict[str, str],
+    ) -> None:
+        import msvcrt  # pylint: disable=import-outside-toplevel
+
+        self._start_output_thread(server)
         self._console_message("FURATIC controls ready. Press H for help.")
 
-        while server.poll() is None:
+        bad_health_checks = 0
+        last_health_check = 0.0
+
+        while True:
+            if server.poll() is not None:
+                self._console_message("Web server exited. Restarting...")
+                server = self._start_windows_web_server(additional_env)
+                self._start_output_thread(server)
+                bad_health_checks = 0
+                time.sleep(1.0)
+                continue
+
+            restart_reason = self._read_restart_request()
+            if restart_reason:
+                self._console_message(
+                    f"Restarting web server safely: {restart_reason}"
+                )
+                self._stop_windows_web_server(server)
+                server = self._start_windows_web_server(additional_env)
+                self._start_output_thread(server)
+                bad_health_checks = 0
+                time.sleep(1.0)
+                continue
+
+            now = time.monotonic()
+            if now - last_health_check >= 10:
+                last_health_check = now
+                if self._web_server_healthy():
+                    bad_health_checks = 0
+                else:
+                    bad_health_checks += 1
+                    if bad_health_checks >= 3:
+                        self._console_message(
+                            "Web server health check failed repeatedly. Restarting..."
+                        )
+                        self._stop_windows_web_server(server)
+                        server = self._start_windows_web_server(additional_env)
+                        self._start_output_thread(server)
+                        bad_health_checks = 0
+                        time.sleep(1.0)
+                        continue
+
             if msvcrt.kbhit():
                 key = msvcrt.getwch()
                 if key in ("\x00", "\xe0"):
@@ -392,18 +511,15 @@ help        show this help and exit""",
                         self._set_site_mode("event")
                         self._console_message("Already in Event Mode.")
                 elif key == "h":
-                    self._console_message("Hotkeys: E = Event Mode, A = After Hours, Q = Quit.")
+                    self._console_message(
+                        "Hotkeys: E = Event Mode, A = After Hours, Q = Quit."
+                    )
                 elif key == "q":
                     self._console_message("Stopping Raveberry...")
-                    server.terminate()
+                    self._stop_windows_web_server(server)
                     break
 
             time.sleep(0.05)
-
-        output_thread.join(timeout=1.0)
-        with self.console_lock:
-            self._clear_status_line()
-            print("", flush=True)
 
     def run_server(self, nomopidy=False, use_celery=False) -> None:
         """Run Raveberry with user privileges."""
@@ -460,41 +576,9 @@ help        show this help and exit""",
                     moderator_password,
                 )
 
-                waitress_command = (
-                    "import os; "
-                    "os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings'); "
-                    "from waitress import serve; "
-                    "from django.contrib.staticfiles.handlers import StaticFilesHandler; "
-                    "from main.wsgi import application as django_application; "
-                    "application = StaticFilesHandler(django_application); "
-                    "serve("
-                    "application, "
-                    "host='127.0.0.1', "
-                    "port=8080, "
-                    "threads=6, "
-                    "connection_limit=100, "
-                    "channel_timeout=60, "
-                    "expose_tracebacks=False"
-                    ")"
-                )
-
-                server = subprocess.Popen(
-                    [sys.executable, "-c", waitress_command],
-                    env={
-                        **os.environ,
-                        "DJANGO_DEBUG": "1",
-                        "PYTHONUNBUFFERED": "1",
-                        "FURATIC_LOCAL_HTTP_SERVER": "1",
-                        **additional_env,
-                    },
-                    stdin=subprocess.DEVNULL,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1,
-                )
+                server = self._start_windows_web_server(additional_env)
                 time.sleep(0.75)
-                self._handle_windows_controls(server)
+                self._supervise_windows_web_server(server, additional_env)
             else:
                 self._print_login_block(
                     "ADMIN",
