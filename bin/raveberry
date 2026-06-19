@@ -210,6 +210,16 @@ help        show this help and exit""",
         self._close_django_db_connections()
         return username, password
 
+    def _ensure_runtime_moderator_credentials(self) -> Tuple[str, str]:
+        self._ensure_django()
+        from core import user_manager  # pylint: disable=import-outside-toplevel
+
+        username, password = user_manager.ensure_builtin_moderator(
+            rotate_if_unset=True
+        )
+        self._close_django_db_connections()
+        return username, password
+
     def _close_django_db_connections(self) -> None:
         if not self.django_ready:
             return
