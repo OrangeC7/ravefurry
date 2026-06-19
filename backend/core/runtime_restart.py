@@ -26,26 +26,29 @@ def request_between_songs_restart() -> None:
     # if the launcher is not supervising for some reason.
     redis.put(RESTART_REQUEST_KEY, RESTART_REASON_BETWEEN_SONGS, expire=60)
 
+
 def clear_restart_request() -> None:
     try:
         redis.connection.delete(RESTART_REQUEST_KEY)
     except Exception as error:  # pylint: disable=broad-except
         logger.warning("failed to clear restart request: %s", error)
 
-def record_completed_song() -> None:
+
+def record_completed_song() -> bool:
     mode = site_mode.get_mode()
     if mode not in {site_mode.EVENT_MODE, site_mode.CLOSING_MODE}:
-        return
+        return False
 
     interval = int(storage.get("maintenance_restart_song_interval"))
     if interval <= 0:
-        return
+        return False
 
     count = int(storage.get("songs_since_maintenance_restart")) + 1
 
     if count >= interval:
         storage.put("songs_since_maintenance_restart", 0)
-        request_between_songs_restart()
-        logger.info("requested web restart after %s completed songs", interval)
-    else:
-        storage.put("songs_since_maintenance_restart", count)
+        logger.info("planned web restart after %s completed songs", interval)
+        return True
+
+    storage.put("songs_since_maintenance_restart", count)
+    return False
