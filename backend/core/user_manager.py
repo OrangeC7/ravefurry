@@ -30,6 +30,8 @@ from core.settings import storage
 from core.settings.storage import Privileges
 from core.util import extract_value
 
+import hashlib
+
 INACTIVITY_PERIOD = 600
 MODERATOR_GROUP_NAME = "moderator"
 QUEUE_SLOT_TTL_SECONDS = 7 * 24 * 60 * 60
@@ -409,6 +411,18 @@ def unwhitelist_ip(ip: str) -> str:
     return normalized
 
 
+def normalize_session_key(session_key: str = "") -> str:
+    """Return a short stable session identifier safe for database fields and Redis keys."""
+
+    raw_session_key = str(session_key or "").strip()
+    if not raw_session_key:
+        return ""
+
+    if len(raw_session_key) <= 50:
+        return raw_session_key
+
+    return hashlib.sha256(raw_session_key.encode("utf-8")).hexdigest()[:50]
+
 def _queue_slot_key(request_ip: str) -> str:
     return f"queue-slot:{request_ip}"
 
@@ -440,8 +454,9 @@ def remember_requester_ip(
         from core import models
 
         updates = {"requester_ip": normalized}
-        if session_key:
-            updates["requester_session_key"] = session_key
+        normalized_session_key = normalize_session_key(session_key)
+        if normalized_session_key:
+            updates["requester_session_key"] = normalized_session_key
 
         models.QueuedSong.objects.filter(id=queue_key).update(**updates)
         models.CurrentSong.objects.filter(queue_key=queue_key).update(**updates)
@@ -641,7 +656,7 @@ def _request_cooldown_key(request_ip: str, session_key: str = "") -> str:
     if normalized_ip:
         return f"request-cooldown:ip:{normalized_ip}"
 
-    clean_session_key = str(session_key or "").strip()
+    clean_session_key = normalize_session_key(session_key)
     if clean_session_key:
         return f"request-cooldown:session:{clean_session_key}"
 
@@ -700,7 +715,7 @@ def clear_request_cooldown(request_ip: str, session_key: str = "") -> None:
     if normalized_ip:
         keys.append(f"request-cooldown:ip:{normalized_ip}")
 
-    clean_session_key = str(session_key or "").strip()
+    clean_session_key = normalize_session_key(session_key)
     if clean_session_key:
         keys.append(f"request-cooldown:session:{clean_session_key}")
 
