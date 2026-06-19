@@ -253,10 +253,8 @@ def ensure_builtin_moderator(
 ) -> tuple[str, str]:
     """Create/update the built-in moderator account.
 
-    - If an explicit password is provided, use it and return it.
-    - Otherwise, if FURATIC_MOD_PASSWORD is configured, use that.
-    - Otherwise, reuse a generated password from config/builtin_credentials.json
-      when rotate_if_unset is True.
+    Avoid rehashing the same password on every restart, because Django auth
+    sessions include the password hash and would be invalidated.
     """
     from django.contrib.auth.models import Group
 
@@ -268,6 +266,7 @@ def ensure_builtin_moderator(
     configured_password = (configured_password or "").strip()
 
     returned_password = ""
+    password_to_apply = ""
 
     group, _ = Group.objects.get_or_create(name=MODERATOR_GROUP_NAME)
     user, _ = UserModel.objects.get_or_create(
@@ -281,11 +280,14 @@ def ensure_builtin_moderator(
         user.is_superuser = False
 
     if configured_password:
-        user.set_password(configured_password)
+        password_to_apply = configured_password
         returned_password = configured_password if password is not None else ""
     elif rotate_if_unset:
-        returned_password = _persistent_builtin_password(username)
-        user.set_password(returned_password)
+        password_to_apply = _persistent_builtin_password(username)
+        returned_password = password_to_apply
+
+    if password_to_apply and not user.check_password(password_to_apply):
+        user.set_password(password_to_apply)
 
     user.save()
     user.groups.add(group)
@@ -296,13 +298,18 @@ def ensure_builtin_admin(
     password: Optional[str] = None,
     rotate_if_unset: bool = False,
 ) -> tuple[str, str]:
-    """Create/update the built-in admin account and optionally persist its password."""
+    """Create/update the built-in admin account and optionally persist its password.
+
+    Avoid rehashing the same password on every restart, because Django auth
+    sessions include the password hash and would be invalidated.
+    """
 
     UserModel = get_user_model()
     username = "admin"
 
     configured_password = (password or "").strip()
     returned_password = ""
+    password_to_apply = ""
 
     user, _ = UserModel.objects.get_or_create(
         **{UserModel.USERNAME_FIELD: username},
@@ -318,11 +325,14 @@ def ensure_builtin_admin(
     user.is_active = True
 
     if configured_password:
-        user.set_password(configured_password)
+        password_to_apply = configured_password
         returned_password = configured_password
     elif rotate_if_unset:
-        returned_password = _persistent_builtin_password(username)
-        user.set_password(returned_password)
+        password_to_apply = _persistent_builtin_password(username)
+        returned_password = password_to_apply
+
+    if password_to_apply and not user.check_password(password_to_apply):
+        user.set_password(password_to_apply)
 
     user.save(update_fields=["password", "is_staff", "is_superuser", "is_active"])
 
