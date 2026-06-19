@@ -14,6 +14,13 @@ if TYPE_CHECKING:
     from core.models import QueuedSong
     from core.musiq.song_utils import Metadata
 
+def _snapshot_after_commit() -> None:
+    try:
+        from core import playback_state_backup  # pylint: disable=import-outside-toplevel
+
+        transaction.on_commit(playback_state_backup.snapshot)
+    except Exception:  # pylint: disable=broad-except
+        pass
 
 class SongQueue(models.Manager):
     """This is the manager for the QueuedSong model.
@@ -29,6 +36,7 @@ class SongQueue(models.Manager):
     def delete_placeholders(self) -> None:
         """Deletes all songs from the queue that are not confirmed."""
         self.filter(internal_url=None).delete()
+        _snapshot_after_commit()
 
     @transaction.atomic
     def enqueue(
@@ -58,6 +66,7 @@ class SongQueue(models.Manager):
         )
         if enqueue_first:
             self.prioritize(song.id)
+        _snapshot_after_commit()
         return song
 
     @transaction.atomic
@@ -85,6 +94,7 @@ class SongQueue(models.Manager):
         self.filter(index__lt=to_prioritize.index).update(index=F("index") + 1)
         to_prioritize.index = 1
         to_prioritize.save()
+        _snapshot_after_commit()
 
     @transaction.atomic
     def deprioritize(self, key: int) -> None:
@@ -97,9 +107,10 @@ class SongQueue(models.Manager):
         self.filter(index__gt=to_deprioritize.index).update(index=F("index") - 1)
         to_deprioritize.index = self.count()
         to_deprioritize.save()
+        _snapshot_after_commit()
 
     @transaction.atomic
-    def remove(self, key: int) -> "QueuedSong":
+    def remove(self, key: int, snapshot: bool = True) -> "QueuedSong":
         """Removes the song specified by :param key: from the queue and returns it."""
         from core import user_manager
 
@@ -107,6 +118,8 @@ class SongQueue(models.Manager):
         user_manager.release_queue_slot_for_song(key)
         to_remove.delete()
         self.filter(index__gt=to_remove.index).update(index=F("index") - 1)
+        if snapshot:
+            _snapshot_after_commit()
         return to_remove
 
     @transaction.atomic
@@ -169,6 +182,7 @@ class SongQueue(models.Manager):
 
         to_reorder.index = new_index
         to_reorder.save()
+        _snapshot_after_commit()
 
     @transaction.atomic
     def shuffle(self) -> None:
@@ -178,6 +192,7 @@ class SongQueue(models.Manager):
         for song, index in zip(self.all(), indices):
             song.index = index
             song.save()
+        _snapshot_after_commit()
 
     @transaction.atomic
     def vote(self, key: int, amount: int, threshold: int) -> Optional["QueuedSong"]:
@@ -186,6 +201,7 @@ class SongQueue(models.Manager):
         from core import user_manager
 
         self.filter(id=key).update(votes=F("votes") + amount)
+        _snapshot_after_commit()
         try:
             song = self.get(id=key)
             if song.votes <= threshold:
