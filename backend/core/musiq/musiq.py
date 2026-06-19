@@ -262,7 +262,7 @@ def request_music(request: WSGIRequest) -> HttpResponse:
         return HttpResponseBadRequest(str(error))
 
     provider = try_providers(
-        request.session.session_key or "",
+        session_key,
         providers,
         requester_ip=requester_ip,
     )
@@ -282,7 +282,7 @@ def request_music(request: WSGIRequest) -> HttpResponse:
         user_manager.remember_requester_ip(
             requester_ip,
             queue_key,
-            session_key=request.session.session_key or "",
+            session_key=session_key,
         )
 
         if storage.get("ip_checking"):
