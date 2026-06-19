@@ -469,6 +469,8 @@ class Playback:
 
             self._song_finished(current_song)
 
+            runtime_restart.record_completed_song()
+
             from core import runtime_restart  # pylint: disable=import-outside-toplevel
             runtime_restart.record_completed_song()
 
