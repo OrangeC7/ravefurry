@@ -1,4 +1,7 @@
+from redis.exceptions import RedisError
+
 from core import redis
+from core.settings import storage
 
 EVENT_MODE = "event"
 CLOSING_MODE = "closing"
@@ -7,13 +10,25 @@ AFTER_HOURS_MODE = "afterhours"
 VALID_MODES = {EVENT_MODE, CLOSING_MODE, AFTER_HOURS_MODE}
 
 
-def get_mode() -> str:
-    mode = str(redis.get("site_mode"))
+def _normalize_mode(mode: str) -> str:
     return mode if mode in VALID_MODES else EVENT_MODE
 
 
+def get_mode() -> str:
+    try:
+        raw_mode = redis.connection.get("site_mode")
+    except RedisError:
+        raw_mode = ""
+
+    if raw_mode in VALID_MODES:
+        return raw_mode
+
+    return _normalize_mode(str(storage.get("site_mode")))
+
+
 def set_mode(mode: str) -> str:
-    normalized = mode if mode in VALID_MODES else EVENT_MODE
+    normalized = _normalize_mode(mode)
+    storage.put("site_mode", normalized)
     redis.put("site_mode", normalized)
     return normalized
 
