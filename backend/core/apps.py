@@ -66,6 +66,10 @@ class CoreConfig(AppConfig):
             runtime_persistence.restore_settings()
             
             redis.start()
+
+            from core import site_mode  # pylint: disable=import-outside-toplevel
+            site_mode.set_mode(site_mode.get_mode())
+
             tasks.start()
 
             worker.start()
