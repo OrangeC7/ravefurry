@@ -57,6 +57,9 @@ defaults = {
     "song_cooldown": 0.0,
     "request_cooldown_seconds": 0.0,
     "max_song_duration_seconds": 300.0,
+    "site_mode": "event",
+    "maintenance_restart_song_interval": 50,
+    "songs_since_maintenance_restart": 0,
     "max_download_size": 0.0,
     "max_playlist_items": 10,
     "max_queue_length": 0,
@@ -137,9 +140,6 @@ defaults = {
     "last_screen_program": "Disabled",
     "initial_resolution": (0, 0),
     "dynamic_resolution": False,
-    "site_mode": "event",
-    "maintenance_restart_song_interval": 50,
-    "songs_since_maintenance_restart": 0,
 }
 
 # Settings change very rarely, cache them to reduce database roundtrips.
