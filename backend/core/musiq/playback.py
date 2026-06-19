@@ -468,8 +468,16 @@ class Playback:
             current_song.delete()
 
             self._song_finished(current_song)
-            
-            runtime_restart.record_completed_song()
+
+            if runtime_restart.record_completed_song():
+                try:
+                    self.player().skip()
+                except Exception:  # pylint: disable=broad-except
+                    logging.exception("failed to stop player before planned web restart")
+
+                redis.put("playing", False)
+                redis.put("backup_playing", False)
+                runtime_restart.request_between_songs_restart()
 
 
 @app.task
