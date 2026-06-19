@@ -13,6 +13,11 @@ PERSISTED_SETTING_KEYS = {
     "whitelisted_ips",
     "ip_blocklist_sources",
     "ip_blocklist_bootstrap_done",
+    "request_cooldown_seconds",
+    "max_song_duration_seconds",
+    "site_mode",
+    "maintenance_restart_song_interval",
+    "songs_since_maintenance_restart",
 }
 
 STATE_FILE = pathlib.Path(conf.BASE_DIR) / "config" / "moderator_runtime_state.json"
