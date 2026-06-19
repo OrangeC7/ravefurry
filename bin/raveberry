@@ -433,7 +433,6 @@ help        show this help and exit""",
                 env={"DJANGO_DEBUG": "1", **os.environ},
             )
 
-            self._set_site_mode("event")
             self._ensure_runtime_defaults()
 
             admin_username, admin_password = self._ensure_runtime_admin_credentials()
