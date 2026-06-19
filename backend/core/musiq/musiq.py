@@ -229,7 +229,7 @@ def request_music(request: WSGIRequest) -> HttpResponse:
         return HttpResponseBadRequest("No query given")
 
     requester_ip = user_manager.get_client_ip(request)
-    session_key = request.session.session_key or ""
+    session_key = user_manager.normalize_session_key(request.session.session_key or "")
 
     cooldown_remaining = user_manager.request_cooldown_remaining(
         requester_ip,
