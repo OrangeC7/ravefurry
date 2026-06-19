@@ -179,7 +179,7 @@ def get(key: str) -> Union[bool, int, float, str, tuple]:
 
 
 def put(key: str, value: Union[bool, int, float, str, tuple]) -> None:
-    """This method sets the :param value: for the given :param key:."""
+    """This method sets the :param value: for the given key."""
     default = defaults[key]
     setting = models.Setting.objects.get_or_create(
         key=key, defaults={"value": str(default)}
@@ -187,3 +187,10 @@ def put(key: str, value: Union[bool, int, float, str, tuple]) -> None:
     setting.value = str(value)
     setting.save()
     cache.clear()
+
+    try:
+        from core import runtime_persistence  # pylint: disable=import-outside-toplevel
+
+        runtime_persistence.persist_setting(key, value)
+    except Exception:
+        pass
