@@ -71,6 +71,7 @@ def dashboard(request: WSGIRequest) -> HttpResponse:
     context = base.context(request)
     context.update(
         {
+            "moderator_login_url": reverse("furatic-login"),
             "moderator_state_url": reverse("moderator-state"),
             "moderator_remove_song_url": reverse("moderator-remove-song"),
             "moderator_skip_current_url": reverse("moderator-skip-current"),
