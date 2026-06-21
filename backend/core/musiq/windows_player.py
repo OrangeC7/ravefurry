@@ -101,7 +101,22 @@ class WindowsPlayer(player.Player):
         self._last_state_check = 0.0
         self._last_stop_waiting = False
 
+        try:
+            self.media_player.stop()
+        except Exception:  # pylint: disable=broad-except
+            pass
+
         self._set_media(uri)
+
+        try:
+            volume = float(redis.get("volume"))
+        except Exception:  # pylint: disable=broad-except
+            volume = 1.0
+
+        if volume <= 0:
+            volume = 1.0
+
+        self.media_player.audio_set_volume(round(max(0.0, min(1.0, volume)) * 100))
 
         if self.media_player.play() == -1:
             raise PlaybackError("VLC failed to start playback")
