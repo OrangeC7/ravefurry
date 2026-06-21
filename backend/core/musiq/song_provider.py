@@ -16,7 +16,7 @@ from core.models import (
     CurrentSong,
     PlayLog,
 )
-from core.musiq import musiq, playback, song_utils
+from core.musiq import audio_tail, musiq, playback, song_utils
 from core.musiq.music_provider import MusicProvider, WrongUrlError, ProviderError
 from core.musiq.song_utils import Metadata
 from core.settings import storage
@@ -387,6 +387,17 @@ class SongProvider(MusicProvider):
             self.remove_placeholder()
             musiq.update_state()
             return
+
+        try:
+            audio_tail.analyze_and_cache(
+                str(metadata.get("internal_url") or ""),
+                float(metadata.get("duration") or 0.0),
+            )
+        except Exception:  # pylint: disable=broad-except
+            logging.exception(
+                "failed to analyze quiet tail for %r",
+                metadata.get("external_url"),
+            )
 
         assert metadata["external_url"]
         self.queued_song.artist = metadata["artist"]
