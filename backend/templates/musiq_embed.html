@@ -493,6 +493,38 @@
         background: linear-gradient(90deg, rgba(0, 142, 248, 0.92), rgba(200, 0, 224, 0.82)) !important;
     }
 
+    .current-song-time-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 6px 2px 0;
+        color: var(--furatic-muted);
+        font-size: 0.82rem;
+        font-weight: 750;
+        line-height: 1;
+        letter-spacing: 0.01em;
+        font-variant-numeric: tabular-nums;
+        opacity: 0.92;
+        transition: opacity 180ms ease;
+    }
+
+    #current-song.empty .current-song-time-row {
+        opacity: 0;
+    }
+
+    #current-song-time-elapsed,
+    #current-song-time-total {
+        min-width: 4.4ch;
+        color: var(--furatic-muted) !important;
+        text-shadow: 0 1px 10px rgba(0,0,0,0.24);
+    }
+
+    #current-song-time-total {
+        text-align: right;
+    }
+    
     .ui-autocomplete {
         background: rgba(10, 14, 28, 0.96) !important;
         border-color: rgba(255,255,255,0.12) !important;
@@ -967,6 +999,10 @@
             <div id="progress-bar-container">
                 <div class="progress">
                     <div id="progress-bar" class="progress-bar"></div>
+                </div>
+                <div class="current-song-time-row" aria-label="Current song time">
+                    <span id="current-song-time-elapsed">0:00</span>
+                    <span id="current-song-time-total">--:--</span>
                 </div>
             </div>
             <div id="song-votes">
