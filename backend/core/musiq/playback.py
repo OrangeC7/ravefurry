@@ -313,13 +313,18 @@ class Playback:
         return catch_up
 
     def _fade_out_for_transition(self, seconds: float) -> None:
-        """Fade out the active player and stop it before advancing to the next song."""
+        """Fade out the active player before advancing to the next song.
+
+        Do not call skip()/stop() here. The normal playback loop will delete the
+        current song and start the next one. Hard-stopping VLC during this handoff
+        can leave the next media item visually active in the UI but silent.
+        """
         seconds = max(0.0, float(seconds or 0.0))
         if seconds <= 0:
             return
 
         player_obj = self.player()
-        if not hasattr(player_obj, "set_volume") or not hasattr(player_obj, "skip"):
+        if not hasattr(player_obj, "set_volume"):
             return
 
         try:
@@ -339,8 +344,6 @@ class Playback:
                 volume = restore_volume * (step / steps)
                 player_obj.set_volume(volume)
                 time.sleep(sleep_seconds)
-
-            player_obj.skip()
         finally:
             try:
                 player_obj.set_volume(restore_volume)
