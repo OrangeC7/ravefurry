@@ -36,6 +36,33 @@ def _current_position_text(current_song: Dict[str, Any] | None, progress: Any) -
     current_position = max(0.0, min(duration, duration * progress_percent / 100.0))
     return song_utils.format_seconds(current_position)
 
+def write_current_song_tick(
+    current_song: Any,
+    progress_seconds: float,
+    effective_duration: float,
+) -> None:
+    """Write only songcurrent.txt for once-per-second OBS timestamp updates."""
+    try:
+        output_dir = Path(conf.FURATIC_OBS_OUTPUT_DIR).expanduser()
+        retry_file_operation(
+            lambda: output_dir.mkdir(parents=True, exist_ok=True),
+            description=f"create OBS export directory {output_dir}",
+            logger=LOGGER,
+        )
+
+        progress_seconds = max(0.0, min(float(effective_duration or 0.0), float(progress_seconds or 0.0)))
+        effective_duration = max(0.0, float(effective_duration or 0.0))
+
+        current_lines = [
+            song_utils.format_seconds(progress_seconds),
+            song_utils.format_seconds(effective_duration),
+            getattr(current_song, "title", "") or "",
+            getattr(current_song, "artist", "") or "",
+            _stringify(getattr(current_song, "votes", 0) or 0),
+        ]
+        _write_lines(output_dir / "songcurrent.txt", current_lines)
+    except Exception:  # pylint: disable=broad-except
+        LOGGER.exception("failed to write OBS current song tick")
 
 def write_from_state(state: Dict[str, Any]) -> None:
     """Write songcurrent.txt and songqueue*.txt files for OBS / overlays."""
