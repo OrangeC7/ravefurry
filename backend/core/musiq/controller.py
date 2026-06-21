@@ -16,7 +16,7 @@ from django.http.response import HttpResponse, HttpResponseBadRequest
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
-from core import audit_log, models, redis, user_manager, playback_state_backup
+from core import audit_log, models, redis, ui_notifications, user_manager, playback_state_backup
 from core.musiq import musiq, playback, player
 from core.settings import storage
 from core.util import extract_value
@@ -138,24 +138,58 @@ def seek_forward(_request: WSGIRequest) -> None:
         pass
 
 
-def _skip() -> None:
-    player.skip()
-    redis.put("backup_playing", False)
+def _skip(reason: str = "manual") -> None:
+    skipped_song_title = ""
+
     try:
         current_song = models.CurrentSong.objects.get()
+        skipped_song_title = current_song.displayname()
+    except models.CurrentSong.DoesNotExist:
+        current_song = None
+
+    player.skip()
+    redis.put("backup_playing", False)
+
+    if current_song is not None:
         current_song.created = timezone.now() - datetime.timedelta(
             seconds=current_song.duration
         )
         current_song.save()
         playback_state_backup.snapshot()
-    except models.CurrentSong.DoesNotExist:
-        pass
+
+    if not skipped_song_title:
+        return
+
+    if reason == "downvote":
+        ui_notifications.emit(
+            "downvote_skip",
+            "Downvoted song skipped",
+            f"{skipped_song_title} hit -2 votes and was skipped.",
+            level="warning",
+            icon="👎",
+        )
+    elif reason == "moderator":
+        ui_notifications.emit(
+            "moderator_skip",
+            "Skipped by moderator",
+            f"{skipped_song_title} was skipped by a moderator.",
+            level="info",
+            icon="⏭",
+        )
+    elif reason == "manual":
+        ui_notifications.emit(
+            "song_skip",
+            "Song skipped",
+            f"{skipped_song_title} was skipped.",
+            level="info",
+            icon="⏭",
+        )
 
 
 @control
 def skip(_request: WSGIRequest) -> None:
     """Skips the current song and continues with the next one."""
-    _skip()
+    _skip(reason="manual")
 
 
 @control
@@ -415,7 +449,7 @@ def vote(request: WSGIRequest) -> HttpResponse:
                 "downvotes_to_kick"
             )
         ):
-            _skip()
+            _skip(reason="downvote")
     except models.CurrentSong.DoesNotExist:
         pass
 
