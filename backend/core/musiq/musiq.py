@@ -21,7 +21,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from core import audit_log, base, obs_export, redis, site_mode, user_manager, util
 from core.models import CurrentSong, QueuedSong
-from core.musiq import controller, playback, song_utils
+from core.musiq import audio_tail, controller, playback, song_utils
 from core.musiq.music_provider import MusicProvider, ProviderError, WrongUrlError
 from core.musiq.playlist_provider import PlaylistProvider
 from core.musiq.song_provider import SongProvider
@@ -431,21 +431,49 @@ def state_dict() -> Dict[str, Any]:
         current_song = CurrentSong.objects.get()
         current_song_dict = model_to_dict(current_song)
         current_song_dict = util.camelize(current_song_dict)
-        current_song_dict["durationFormatted"] = song_utils.format_seconds(
-            current_song_dict["duration"]
+
+        original_duration = float(current_song.duration or 0.0)
+        effective_duration = audio_tail.effective_duration_for_song(current_song)
+        if effective_duration <= 0:
+            effective_duration = original_duration
+
+        current_song_dict["originalDuration"] = original_duration
+        current_song_dict["effectiveDuration"] = effective_duration
+        current_song_dict["trimmedTailSeconds"] = max(
+            0.0,
+            original_duration - effective_duration,
         )
+
+        # For the currently-playing song, the UI should treat duration as the
+        # audible duration, not the raw media file duration with quiet tail.
+        current_song_dict["duration"] = effective_duration
+        current_song_dict["durationFormatted"] = song_utils.format_seconds(
+            effective_duration
+        )
+        current_song_dict["effectiveDurationFormatted"] = song_utils.format_seconds(
+            effective_duration
+        )
+
         if storage.get("color_indication") != storage.Privileges.nobody:
             engagement = redis.connection.get(f"engagement-{current_song.queue_key}")
             _add_color_indication(engagement, current_song_dict)
+
         musiq_state["currentSong"] = current_song_dict
 
         paused = storage.get("paused")
         if paused:
-            progress = (current_song.last_paused - current_song.created).total_seconds()
+            progress_seconds = (
+                current_song.last_paused - current_song.created
+            ).total_seconds()
         else:
-            progress = (timezone.now() - current_song.created).total_seconds()
+            progress_seconds = (timezone.now() - current_song.created).total_seconds()
+
+        progress_seconds = max(0.0, min(effective_duration, progress_seconds))
+        musiq_state["progressSeconds"] = progress_seconds
+        musiq_state["effectiveDuration"] = effective_duration
+
         try:
-            progress /= current_song.duration
+            progress = progress_seconds / effective_duration
         except ZeroDivisionError:
             progress = 1
         musiq_state["progress"] = progress * 100
