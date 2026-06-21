@@ -55,6 +55,7 @@ def start() -> None:
     """Initializes this module by starting the playback and buzzer loop."""
     paused = storage.get("paused")
     redis.put("paused", paused)
+    redis.put("volume", storage.get("volume"))
 
     # scrub stale runtime flags from previous runs
     redis.put("playing", False)
