@@ -14,7 +14,7 @@ from django.db import connection, transaction
 from django.db.models import Case, F, IntegerField, Value, When
 from django.utils import timezone
 
-from core import models, redis, user_manager, playback_state_backup
+from core import models, obs_export, redis, user_manager, playback_state_backup
 from core.lights import controller as lights_controller
 from core.musiq import audio_tail, musiq, player
 from core.settings import storage
@@ -369,6 +369,7 @@ class Playback:
         trim_tail = effective_duration < (original_duration - 0.25)
         transition_fade_seconds = audio_tail.transition_fade_seconds() if trim_tail else 0.0
         fade_started = False
+        last_obs_export_at = 0.0
 
         if trim_tail:
             logging.info(
@@ -397,6 +398,16 @@ class Playback:
                 pass
             else:
                 progress = (timezone.now() - current_song.created).total_seconds()
+                progress_for_display = max(0.0, min(effective_duration, progress))
+
+                now_monotonic = time.monotonic()
+                if now_monotonic - last_obs_export_at >= 1.0:
+                    last_obs_export_at = now_monotonic
+                    obs_export.write_current_song_tick(
+                        current_song,
+                        progress_for_display,
+                        effective_duration,
+                    )
 
                 if trim_tail and not fade_started:
                     fade_start = max(0.0, effective_duration - transition_fade_seconds)
