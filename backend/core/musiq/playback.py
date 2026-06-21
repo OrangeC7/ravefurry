@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from core import models, redis, user_manager, playback_state_backup
 from core.lights import controller as lights_controller
-from core.musiq import musiq, player
+from core.musiq import audio_tail, musiq, player
 from core.settings import storage
 from core.tasks import app
 from core.musiq import song_utils
@@ -312,6 +312,41 @@ class Playback:
 
         return catch_up
 
+    def _fade_out_for_transition(self, seconds: float) -> None:
+        """Fade out the active player and stop it before advancing to the next song."""
+        seconds = max(0.0, float(seconds or 0.0))
+        if seconds <= 0:
+            return
+
+        player_obj = self.player()
+        if not hasattr(player_obj, "set_volume") or not hasattr(player_obj, "skip"):
+            return
+
+        try:
+            restore_volume = float(storage.get("volume"))
+        except Exception:  # pylint: disable=broad-except
+            restore_volume = 1.0
+
+        restore_volume = max(0.0, min(1.0, restore_volume))
+        steps = max(8, int(seconds / 0.1))
+        sleep_seconds = seconds / steps
+
+        try:
+            for step in range(steps, -1, -1):
+                if redis.get("paused") or redis.get("stop_playback_loop") or redis.get("alarm_requested"):
+                    break
+
+                volume = restore_volume * (step / steps)
+                player_obj.set_volume(volume)
+                time.sleep(sleep_seconds)
+
+            player_obj.skip()
+        finally:
+            try:
+                player_obj.set_volume(restore_volume)
+            except Exception:  # pylint: disable=broad-except
+                pass
+
     def _wait_until_song_end(self) -> bool:
         """Wait until the song is over.
         Returns True when finished without errors, False otherwise."""
@@ -319,6 +354,27 @@ class Playback:
         # If mopidy crashes/restarts for example, no track_playback_ended event is sent
         # playback_ended.wait()
         error = False
+
+        try:
+            starting_song = CurrentSong.objects.get()
+        except CurrentSong.DoesNotExist:
+            return False
+
+        effective_duration = audio_tail.effective_duration_for_song(starting_song)
+        original_duration = float(starting_song.duration or 0.0)
+        trim_tail = effective_duration < (original_duration - 0.25)
+        transition_fade_seconds = audio_tail.transition_fade_seconds() if trim_tail else 0.0
+        fade_started = False
+
+        if trim_tail:
+            logging.info(
+                "quiet tail trim active for %s: original=%.2fs effective=%.2fs saved=%.2fs",
+                starting_song.displayname(),
+                original_duration,
+                effective_duration,
+                original_duration - effective_duration,
+            )
+
         while True:
             command = self._handle_operator_command()
             if command == "clear_for_event":
@@ -337,6 +393,14 @@ class Playback:
                 pass
             else:
                 progress = (timezone.now() - current_song.created).total_seconds()
+
+                if trim_tail and not fade_started:
+                    fade_start = max(0.0, effective_duration - transition_fade_seconds)
+                    if progress >= fade_start:
+                        fade_started = True
+                        self._fade_out_for_transition(transition_fade_seconds)
+                        break
+
                 if progress >= current_song.duration:
                     break
             # use internal timekeeping to decide when a song is over to lower mopidy performance use
