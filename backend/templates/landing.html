@@ -449,6 +449,130 @@
         border: 1px solid rgba(255,255,255,0.10);
         box-shadow: 0 18px 40px rgba(0,0,0,0.30);
       }
+
+      .event-notifications {
+        position: fixed;
+        top: 18px;
+        right: 18px;
+        z-index: 40;
+        width: min(370px, calc(100vw - 28px));
+        display: grid;
+        gap: 10px;
+        pointer-events: none;
+      }
+
+      .event-notification {
+        position: relative;
+        display: grid;
+        grid-template-columns: 40px minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+        padding: 13px 15px 13px 13px;
+        border-radius: 20px;
+        color: var(--text);
+        border: 1px solid rgba(255,255,255,0.13);
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.105), rgba(255,255,255,0.048)),
+          rgba(7, 10, 22, 0.74);
+        -webkit-backdrop-filter: blur(24px) saturate(130%);
+        backdrop-filter: blur(24px) saturate(130%);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.06),
+          0 18px 46px rgba(0,0,0,0.42);
+        overflow: hidden;
+        opacity: 0;
+        transform: translate3d(18px, -8px, 0) scale(0.975);
+        filter: blur(8px);
+        transition:
+          opacity 260ms cubic-bezier(0.22, 1, 0.36, 1),
+          transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
+          filter 420ms cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .event-notification.is-visible {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+        filter: none;
+      }
+
+      .event-notification.is-leaving {
+        opacity: 0;
+        transform: translate3d(22px, -8px, 0) scale(0.97);
+        filter: blur(8px);
+      }
+
+      .event-notification::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at top left, rgba(0,142,248,0.20), transparent 44%),
+          radial-gradient(circle at bottom right, rgba(200,0,224,0.15), transparent 42%);
+        pointer-events: none;
+      }
+
+      .event-notification.is-warning::before {
+        background:
+          radial-gradient(circle at top left, rgba(222,104,0,0.24), transparent 44%),
+          radial-gradient(circle at bottom right, rgba(200,0,224,0.12), transparent 42%);
+      }
+
+      .event-notification-icon {
+        position: relative;
+        width: 40px;
+        height: 40px;
+        display: grid;
+        place-items: center;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.09);
+        border: 1px solid rgba(255,255,255,0.10);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+        font-size: 20px;
+      }
+
+      .event-notification-copy {
+        position: relative;
+        min-width: 0;
+      }
+
+      .event-notification-title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 800;
+        line-height: 1.2;
+        letter-spacing: -0.01em;
+      }
+
+      .event-notification-message {
+        margin: 3px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.3;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      @media (max-width: 620px) {
+        .event-notifications {
+          top: 10px;
+          left: 10px;
+          right: 10px;
+          width: auto;
+        }
+
+        .event-notification {
+          transform: translate3d(0, -14px, 0) scale(0.98);
+        }
+
+        .event-notification.is-visible {
+          transform: translate3d(0, 0, 0) scale(1);
+        }
+
+        .event-notification.is-leaving {
+          transform: translate3d(0, -14px, 0) scale(0.98);
+        }
+      }
       
       @media (max-width: 980px) {
         .player-layout,
@@ -528,7 +652,8 @@
         .player-card,
         .player-stage,
         .tv-panel,
-        .tv-corner-button {
+        .tv-corner-button,
+        .event-notification {
           transition: none;
         }
       }
@@ -538,6 +663,7 @@
     <canvas id="aurora" aria-hidden="true"></canvas>
     <div class="noise" aria-hidden="true"></div>
     <div class="vignette" aria-hidden="true"></div>
+    <div class="event-notifications" id="event-notifications" aria-live="polite" aria-atomic="false"></div>
 
     <main class="page">
       <section class="shell" aria-labelledby="title">
@@ -1062,6 +1188,121 @@
         });
       })();
 
+      (function () {
+        const container = document.getElementById("event-notifications");
+        const endpoint = "/api/notifications/";
+        const maxVisible = 3;
+        const visible = new Set();
+
+        let latestNotificationId = 0;
+        let primed = false;
+        let pollTimer = 0;
+
+        function normalizeText(value, fallback) {
+          const text = String(value || "").trim();
+          return text || fallback;
+        }
+
+        function removeNotification(element) {
+          if (!element || element.classList.contains("is-leaving")) {
+            return;
+          }
+
+          element.classList.remove("is-visible");
+          element.classList.add("is-leaving");
+
+          window.setTimeout(function () {
+            visible.delete(element);
+            element.remove();
+          }, 460);
+        }
+
+        function pruneVisible() {
+          while (visible.size > maxVisible) {
+            const first = visible.values().next().value;
+            removeNotification(first);
+          }
+        }
+
+        function showNotification(item) {
+          const element = document.createElement("section");
+          const level = normalizeText(item.level, "info");
+          const title = normalizeText(item.title, "FURATIC update");
+          const message = normalizeText(item.message, "");
+          const icon = normalizeText(item.icon, "✨");
+
+          element.className = "event-notification is-" + level;
+          element.setAttribute("role", "status");
+          element.innerHTML = `
+            <div class="event-notification-icon" aria-hidden="true"></div>
+            <div class="event-notification-copy">
+              <p class="event-notification-title"></p>
+              <p class="event-notification-message"></p>
+            </div>
+          `;
+
+          element.querySelector(".event-notification-icon").textContent = icon;
+          element.querySelector(".event-notification-title").textContent = title;
+          element.querySelector(".event-notification-message").textContent = message;
+
+          container.appendChild(element);
+          visible.add(element);
+          pruneVisible();
+
+          window.requestAnimationFrame(function () {
+            element.classList.add("is-visible");
+          });
+
+          window.setTimeout(function () {
+            removeNotification(element);
+          }, 6200);
+        }
+
+        async function pollNotifications() {
+          try {
+            const response = await fetch(endpoint + "?after=" + latestNotificationId, {
+              cache: "no-store",
+              credentials: "same-origin",
+            });
+
+            if (!response.ok) {
+              return;
+            }
+
+            const data = await response.json();
+            const notifications = Array.isArray(data.notifications)
+              ? data.notifications
+              : [];
+
+            if (typeof data.latest === "number" && Number.isFinite(data.latest)) {
+              latestNotificationId = Math.max(latestNotificationId, data.latest);
+            }
+
+            if (!primed) {
+              primed = true;
+              return;
+            }
+
+            for (const notification of notifications) {
+              const id = Number(notification.id || 0);
+              latestNotificationId = Math.max(latestNotificationId, id);
+              showNotification(notification);
+            }
+          } catch (_error) {
+            // Silent retry. Notifications are non-critical UI.
+          }
+        }
+
+        pollNotifications();
+        pollTimer = window.setInterval(pollNotifications, 2500);
+
+        window.addEventListener("beforeunload", function () {
+          if (pollTimer) {
+            window.clearInterval(pollTimer);
+          }
+        });
+      })();
+      
       let redirectingToAfterHours = false;
       
       async function pollMode() {
