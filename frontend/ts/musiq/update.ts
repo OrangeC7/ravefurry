@@ -5,6 +5,64 @@ import {syncAudioStream} from './audio';
 
 export let state = null;
 let animationInProgress = false;
+let lastStateReceivedAt = 0;
+
+function formatSeconds(totalSeconds) {
+  totalSeconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return hours + ':' + String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+  }
+
+  return minutes + ':' + String(seconds).padStart(2, '0');
+}
+
+function currentSongDuration(song) {
+  if (!song) {
+    return 0;
+  }
+
+  return Number(song.effectiveDuration || song.duration || 0);
+}
+
+function currentSongPlayedSeconds() {
+  if (state == null || state.currentSong == null) {
+    return 0;
+  }
+
+  const duration = currentSongDuration(state.currentSong);
+  const serverProgress = Number(state.progress || 0);
+  let played = duration * serverProgress / 100;
+
+  if (!state.paused && lastStateReceivedAt > 0) {
+    played += (Date.now() - lastStateReceivedAt) / 1000;
+  }
+
+  return Math.max(0, Math.min(duration, played));
+}
+
+function updateCurrentSongTimeLabels() {
+  const elapsed = $('#current-song-time-elapsed');
+  const total = $('#current-song-time-total');
+
+  if (!elapsed.length || !total.length) {
+    return;
+  }
+
+  if (state == null || state.currentSong == null) {
+    elapsed.text('0:00');
+    total.text('--:--');
+    return;
+  }
+
+  const duration = currentSongDuration(state.currentSong);
+  elapsed.text(formatSeconds(currentSongPlayedSeconds()));
+  total.text(formatSeconds(duration));
+}
 
 const downloadSvg = `
 <svg version="1.1" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
@@ -23,6 +81,8 @@ export function clearState() {
 /** Update the musiq state.
  * @param {Object} newState an object containing all state information */
 export function updateState(newState) {
+  lastStateReceivedAt = Date.now();
+
   if (!('musiq' in newState)) {
     // this state is not meant for a musiq update
     return;
@@ -58,6 +118,7 @@ export function updateState(newState) {
     // Trigger a reflow, flushing the CSS changes
     $('#progress-bar')[0].offsetHeight;
 
+    updateCurrentSongTimeLabels();
     showPlayButton();
   } else {
     state = newState.musiq;
@@ -87,6 +148,7 @@ export function updateState(newState) {
     }
 
     $('#current-song-votes').text(currentSong.votes);
+    updateCurrentSongTimeLabels();
 
     if (COLOR_INDICATION) {
       const upvoteIndicators = $('#current-song-upvote-indicators');
@@ -136,10 +198,10 @@ export function updateState(newState) {
     } else {
       showPauseButton();
 
-      const duration = state.currentSong.duration;
+      const duration = currentSongDuration(state.currentSong);
 
-      const played = state.progress / 100 * duration;
-      const left = duration - played;
+      const played = currentSongPlayedSeconds();
+      const left = Math.max(0, duration - played);
 
       $('#progress-bar').css({
         'transition': 'width ' + left + 's linear',
@@ -534,5 +596,10 @@ $(document).ready(() => {
   if (!["/musiq/", "/p/"].includes(window.location.pathname)) {
     return;
   }
+
   registerSpecificState(updateState);
+
+  window.setInterval(function() {
+    updateCurrentSongTimeLabels();
+  }, 1000);
 });
