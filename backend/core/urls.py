@@ -25,6 +25,7 @@ from core.settings import sound
 from core.settings import system
 from core.settings import wifi
 from core import state_handler
+from core import ui_notifications
 
 urlpatterns: List[Union[URLPattern, URLResolver]] = [
     path("", base.landing, name="base"),
@@ -55,6 +56,7 @@ urlpatterns: List[Union[URLPattern, URLResolver]] = [
             [
                 path("version/", api.version, name="version"),
                 path("site-mode/", base.site_mode_status, name="site-mode-status"),
+                path("notifications/", ui_notifications.notifications, name="ui-notifications"),
                 path(
                     "moderator/",
                     include(
