@@ -125,7 +125,7 @@ def remove_song(request: WSGIRequest) -> HttpResponse:
 @user_manager.moderator_required
 def skip_current_song(_request: WSGIRequest) -> HttpResponse:
     """Skip the currently playing song."""
-    musiq_controller._skip()
+    musiq_controller._skip(reason="moderator")
     audit_log.append("moderator_skip_current", request=_request, target="current-song")
     musiq.update_state()
     return JsonResponse(_state_payload())
