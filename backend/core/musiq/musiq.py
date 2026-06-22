@@ -56,7 +56,7 @@ def ordered_queue_queryset():
         natural_order = all_songs.order_by("index")
 
     locked_key = next_up.resolve_locked_queue_key(
-        natural_order.values_list("id", flat=True),
+        natural_order.exclude(internal_url=None).values_list("id", flat=True),
         allow_new_lock=CurrentSong.objects.exists(),
     )
 
