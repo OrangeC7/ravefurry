@@ -10,8 +10,12 @@ export function onReady() {
   let currentTokens = maxTokens;
   const bucketLifetime = 30000; // half a minute
   let currentBucket = $.now();
-  const activationEvents = window.PointerEvent ? 'pointerup' : 'touchend click';
-  let lastTouchActivation = 0;
+
+  // Mobile browsers are inconsistent inside the embedded transparent UI.
+  // Listen to all activation paths and dedupe them by button/key.
+  const activationEvents = 'pointerup touchend click';
+  let lastActivationAt = 0;
+  let lastActivationSignature = '';
 
   /** Makes sure that voting does not occur too often.
    * @return {boolean} whether voting is allowed. */
@@ -51,44 +55,69 @@ export function onReady() {
     if (votes.length == 0) {
       votes = button.siblings('#current-song-votes');
     }
+
     const currentVotes = Number(votes.text()) || 0;
     votes.text(String(currentVotes + amount));
+
     $.post(urls['musiq']['vote'], {
       key: key,
       amount: amount,
     }).fail(function(response) {
       errorToast(response.responseText || 'Could not register vote');
+
       const failedVotes = Number(votes.text()) || 0;
       votes.text(String(failedVotes - amount));
+
       if (onFail) {
         onFail();
       }
     });
   }
 
-  function shouldIgnoreActivation(event) {
+  function activationSignature(buttonElement) {
+    const button = $(buttonElement).closest('.vote-up, .vote-down');
+    const keyedElement = button.closest('[data-queue-key]');
+    const key = keyedElement.attr('data-queue-key') || '';
+    const id = button.attr('id') || '';
+    const direction = button.hasClass('vote-up') ? 'up' : 'down';
+
+    return direction + ':' + key + ':' + id;
+  }
+
+  function shouldIgnoreActivation(event, buttonElement) {
     const originalEvent = event.originalEvent || event;
 
     if (event.type === 'pointerup') {
-      if (originalEvent && originalEvent.pointerType === 'mouse' && originalEvent.button !== 0) {
+      if (
+        originalEvent &&
+        originalEvent.pointerType === 'mouse' &&
+        originalEvent.button !== 0
+      ) {
         return true;
       }
-      if (originalEvent && originalEvent.pointerType && originalEvent.pointerType !== 'mouse') {
+
+      if (
+        originalEvent &&
+        originalEvent.pointerType &&
+        originalEvent.pointerType !== 'mouse'
+      ) {
         event.preventDefault();
       }
-      return false;
     }
 
     if (event.type === 'touchend') {
-      lastTouchActivation = Date.now();
       event.preventDefault();
-      return false;
     }
 
-    if (event.type === 'click' && Date.now() - lastTouchActivation < 450) {
+    const now = Date.now();
+    const signature = activationSignature(buttonElement);
+
+    if (signature === lastActivationSignature && now - lastActivationAt < 450) {
       return true;
     }
 
+    lastActivationSignature = signature;
+    lastActivationAt = now;
     return false;
   }
 
@@ -99,6 +128,7 @@ export function onReady() {
       }
       return state.currentSong.queueKey;
     }
+
     return keyOfElement(button);
   }
 
@@ -155,16 +185,18 @@ export function onReady() {
   }
 
   $('#content').on(activationEvents, '.vote-up', function(event) {
-    if (shouldIgnoreActivation(event)) {
+    if (shouldIgnoreActivation(event, this)) {
       return;
     }
+
     handleVotePress(this, 'up');
   });
 
   $('#content').on(activationEvents, '.vote-down', function(event) {
-    if (shouldIgnoreActivation(event)) {
+    if (shouldIgnoreActivation(event, this)) {
       return;
     }
+
     handleVotePress(this, 'down');
   });
 }
@@ -173,5 +205,6 @@ $(document).ready(() => {
   if (!["/musiq/", "/p/"].includes(window.location.pathname)) {
     return;
   }
+
   onReady();
 });
