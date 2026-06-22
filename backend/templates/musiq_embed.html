@@ -711,14 +711,6 @@
     .vote-down.furatic-vote-bump {
         animation: furaticVoteBumpDown 520ms cubic-bezier(0.22, 1, 0.36, 1);
     }
-
-    #song-votes .vote-up.furatic-vote-bump {
-        animation: furaticCurrentVoteGlowUp 520ms cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    #song-votes .vote-down.furatic-vote-bump {
-        animation: furaticCurrentVoteGlowDown 520ms cubic-bezier(0.22, 1, 0.36, 1);
-    }
     
     @keyframes furaticVoteBumpUp {
         0% {
@@ -753,45 +745,6 @@
         }
         100% {
             transform: translateY(0) scale(1);
-        }
-    }
-
-    
-    @keyframes furaticCurrentVoteGlowUp {
-        0% {
-            transform: translate3d(0, 0, 0) scale(1);
-            filter: drop-shadow(0 0 0 rgba(27, 201, 142, 0));
-        }
-        35% {
-            transform: translate3d(0, 0, 0) scale(1.08);
-            filter: drop-shadow(0 0 10px rgba(27, 201, 142, 0.42));
-        }
-        70% {
-            transform: translate3d(0, 0, 0) scale(0.99);
-            filter: drop-shadow(0 0 6px rgba(27, 201, 142, 0.22));
-        }
-        100% {
-            transform: translate3d(0, 0, 0) scale(1);
-            filter: drop-shadow(0 0 0 rgba(27, 201, 142, 0));
-        }
-    }
-
-    @keyframes furaticCurrentVoteGlowDown {
-        0% {
-            transform: translate3d(0, 0, 0) scale(1);
-            filter: drop-shadow(0 0 0 rgba(230, 71, 89, 0));
-        }
-        35% {
-            transform: translate3d(0, 0, 0) scale(1.08);
-            filter: drop-shadow(0 0 10px rgba(230, 71, 89, 0.42));
-        }
-        70% {
-            transform: translate3d(0, 0, 0) scale(0.99);
-            filter: drop-shadow(0 0 6px rgba(230, 71, 89, 0.22));
-        }
-        100% {
-            transform: translate3d(0, 0, 0) scale(1);
-            filter: drop-shadow(0 0 0 rgba(230, 71, 89, 0));
         }
     }
     
@@ -1987,18 +1940,8 @@
             return;
         }
 
-        const button = target.closest(".vote-up, .vote-down");
-        if (!button || prefersReducedMotion) {
-            return;
-        }
-
-        button.classList.remove("furatic-vote-bump");
-        void button.offsetWidth;
-        button.classList.add("furatic-vote-bump");
-
-        window.setTimeout(function () {
-            button.classList.remove("furatic-vote-bump");
-        }, 560);
+        // Vote button animations are triggered by frontend/ts/musiq/buttons-voting.ts
+        // so mobile taps cannot animate without also going through the vote path.
     });
 
     const observer = new MutationObserver(function () {
