@@ -11,14 +11,16 @@ export function onReady() {
   const bucketLifetime = 30000; // half a minute
   let currentBucket = $.now();
 
+  // Search/request already works on mobile because it uses click/tap.
+  // Votes need the same mobile-safe path, with touch/pointer dedupe.
+  const activationEvents = 'click tap touchend pointerup';
   let lastActivationAt = 0;
   let lastActivationSignature = '';
 
-  /** Makes sure that voting does not occur too often.
-   * @return {boolean} whether voting is allowed. */
   function canVote() {
     const now = $.now();
     const timePassed = now - currentBucket;
+
     if (timePassed > bucketLifetime) {
       currentBucket = now;
       currentTokens = maxTokens - 1;
@@ -42,11 +44,6 @@ export function onReady() {
     return false;
   }
 
-  /** Vote for a song.
-   * @param {HTMLElement} button the button that was pressed to vote
-   * @param {number} key the key of the voted song
-   * @param {number} amount the amount of votes, from -2 to +2.
-   * @param {?Function} onFail callback to restore the previous UI state. */
   function vote(button, key, amount, onFail = null) {
     let votes = button.closest('.queue-entry').find('.queue-vote-count');
     if (votes.length == 0) {
@@ -77,8 +74,7 @@ export function onReady() {
     }
 
     buttonElement.classList.remove('furatic-vote-bump');
-    // Trigger reflow so repeated taps restart the same animation.
-    buttonElement.offsetWidth;
+    void buttonElement.offsetWidth;
     buttonElement.classList.add('furatic-vote-bump');
 
     window.setTimeout(function() {
@@ -99,37 +95,30 @@ export function onReady() {
   function shouldIgnoreActivation(event, buttonElement) {
     const originalEvent = event.originalEvent || event;
 
-    if (event.type === 'pointerdown') {
-      if (
-        originalEvent &&
-        originalEvent.pointerType === 'mouse' &&
-        originalEvent.button !== 0
-      ) {
-        return true;
-      }
-
-      if (
-        originalEvent &&
-        originalEvent.pointerType &&
-        originalEvent.pointerType !== 'mouse'
-      ) {
-        event.preventDefault();
-      }
-    }
-
-    if (event.type === 'touchstart') {
-      event.preventDefault();
+    if (
+      event.type === 'pointerup' &&
+      originalEvent &&
+      originalEvent.pointerType === 'mouse' &&
+      originalEvent.button !== 0
+    ) {
+      return true;
     }
 
     const now = Date.now();
     const signature = activationSignature(buttonElement);
 
-    if (signature === lastActivationSignature && now - lastActivationAt < 450) {
+    if (signature === lastActivationSignature && now - lastActivationAt < 520) {
       return true;
     }
 
     lastActivationSignature = signature;
     lastActivationAt = now;
+
+    if (!originalEvent || originalEvent.cancelable !== false) {
+      event.preventDefault();
+    }
+    event.stopPropagation();
+
     return false;
   }
 
@@ -203,32 +192,21 @@ export function onReady() {
     }
   }
 
-  function handleActivation(event) {
-    const target = event.target instanceof Element ? event.target : null;
-    const buttonElement = target ? target.closest('.vote-up, .vote-down') : null;
-
-    if (!buttonElement) {
+  $('#content').on(activationEvents, '.vote-up, .vote-down', function(event) {
+    if ($(this).attr('data-furatic-own-vote-blocked') === 'true') {
       return;
     }
 
-    if (shouldIgnoreActivation(event, buttonElement)) {
+    if (shouldIgnoreActivation(event, this)) {
       return;
     }
 
-    if (buttonElement.classList.contains('vote-up')) {
-      handleVotePress(buttonElement, 'up');
-      return;
+    if ($(this).hasClass('vote-up')) {
+      handleVotePress(this, 'up');
+    } else {
+      handleVotePress(this, 'down');
     }
-
-    handleVotePress(buttonElement, 'down');
-  }
-
-  if (window.PointerEvent) {
-    document.addEventListener('pointerdown', handleActivation, true);
-  } else {
-    document.addEventListener('touchstart', handleActivation, true);
-    document.addEventListener('click', handleActivation, true);
-  }
+  });
 }
 
 $(document).ready(() => {
