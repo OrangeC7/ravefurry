@@ -1545,6 +1545,24 @@
             : null;
     }
 
+    function syncBlockedVoteButtons(row, isBlocked) {
+        if (!row) {
+            return;
+        }
+
+        row.querySelectorAll(".vote-up, .vote-down").forEach(function (button) {
+            if (isBlocked) {
+                button.setAttribute("data-furatic-own-vote-blocked", "true");
+                button.setAttribute("aria-disabled", "true");
+                button.classList.remove("pressed");
+                button.classList.remove("furatic-vote-bump");
+            } else {
+                button.removeAttribute("data-furatic-own-vote-blocked");
+                button.removeAttribute("aria-disabled");
+            }
+        });
+    }
+    
     function positionOwnVoteTooltip(button) {
         const tooltip = getOwnVoteTooltip();
         if (!tooltip || !button) {
@@ -1582,61 +1600,6 @@
                 Math.min(
                     tooltipRect.width - arrowEdgePadding,
                     (buttonRect.left + (buttonRect.width / 2)) - desiredTooltipLeftEdge + tooltipNudge
-                )
-            );
-    
-            arrowLeft = arrowOffsetPx.toFixed(2) + "px";
-        } else {
-            const minLeft = 12 + (tooltipRect.width / 2);
-            const maxLeft = window.innerWidth - 12 - (tooltipRect.width / 2);
-    
-            if (minLeft <= maxLeft) {
-                left = Math.max(minLeft, Math.min(maxLeft, left));
-            }
-        }
-    
-        const top = Math.max(tooltipRect.height + 18, buttonRect.top);
-    
-        tooltip.style.setProperty("--furatic-tooltip-arrow-left", arrowLeft);
-        tooltip.style.left = left.toFixed(2) + "px";
-        tooltip.style.top = top.toFixed(2) + "px";
-    }
-
-    function positionOwnVoteTooltip(button) {
-        const tooltip = getOwnVoteTooltip();
-        if (!tooltip || !button) {
-            return;
-        }
-    
-        tooltip.classList.add("is-visible");
-        tooltip.setAttribute("aria-hidden", "false");
-    
-        const buttonRect = button.getBoundingClientRect();
-        const tooltipRect = tooltip.getBoundingClientRect();
-        const isQueueVoteButton = !!button.closest("#song-queue");
-    
-        let left = buttonRect.left + (buttonRect.width / 2);
-        let arrowLeft = "50%";
-    
-        if (isQueueVoteButton) {
-            const viewportPadding = 12;
-            const arrowEdgePadding = 24;
-    
-            const desiredTooltipLeftEdge = Math.max(
-                viewportPadding,
-                Math.min(
-                    window.innerWidth - viewportPadding - tooltipRect.width,
-                    buttonRect.right - tooltipRect.width + 18
-                )
-            );
-    
-            left = desiredTooltipLeftEdge + (tooltipRect.width / 2);
-    
-            const arrowOffsetPx = Math.max(
-                arrowEdgePadding,
-                Math.min(
-                    tooltipRect.width - arrowEdgePadding,
-                    (buttonRect.left + (buttonRect.width / 2)) - desiredTooltipLeftEdge
                 )
             );
     
