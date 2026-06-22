@@ -73,12 +73,23 @@ class SongQueue(models.Manager):
     def dequeue(self) -> Tuple[int, Optional["QueuedSong"]]:
         """Removes the first completed song from the queue and returns its id and the object."""
         from core import user_manager
+        from core.musiq import next_up
 
-        song = self.confirmed().first()
+        locked_key = next_up.get_locked_queue_key()
+        if locked_key is not None:
+            song = self.confirmed().filter(id=locked_key).first()
+            if song is None:
+                next_up.clear_locked_queue_key()
+                song = self.confirmed().first()
+        else:
+            song = self.confirmed().first()
+
         if song is None:
             return -1, None
+
         song_id = song.id
         user_manager.release_queue_slot_for_song(song_id)
+        next_up.clear_if_locked(song_id)
         song.delete()
         self.filter(index__gt=song.index).update(index=F("index") - 1)
         return song_id, song
@@ -86,6 +97,12 @@ class SongQueue(models.Manager):
     @transaction.atomic
     def prioritize(self, key: int) -> None:
         """Moves the song specified by :param key: to the front of the queue."""
+        from core.musiq import next_up
+
+        locked_key = next_up.get_locked_queue_key()
+        if locked_key is not None and int(key) != locked_key:
+            raise ValueError("next up song is locked")
+
         to_prioritize = self.get(id=key)
         first = self.first()
         if to_prioritize == first:
@@ -113,9 +130,11 @@ class SongQueue(models.Manager):
     def remove(self, key: int, snapshot: bool = True) -> "QueuedSong":
         """Removes the song specified by :param key: from the queue and returns it."""
         from core import user_manager
+        from core.musiq import next_up
 
         to_remove = self.get(id=key)
         user_manager.release_queue_slot_for_song(key)
+        next_up.clear_if_locked(key)
         to_remove.delete()
         self.filter(index__gt=to_remove.index).update(index=F("index") - 1)
         if snapshot:
@@ -135,6 +154,15 @@ class SongQueue(models.Manager):
         except core.models.QueuedSong.DoesNotExist as error:
             raise ValueError("reordered song does not exist") from error
         new_next = self.filter(id=new_next_id).first()
+
+        from core.musiq import next_up
+
+        locked_key = next_up.get_locked_queue_key()
+        if locked_key is not None:
+            if element_id == locked_key:
+                raise ValueError("next up song is locked")
+            if new_next_id == locked_key:
+                raise ValueError("cannot move a song ahead of locked next up song")
 
         first = self.first()
         last = self.last()
@@ -199,6 +227,7 @@ class SongQueue(models.Manager):
         """Modify the vote-count of the song specified by :param key: by :param amount: votes.
         If the song is now below the threshold, remove and return it."""
         from core import user_manager
+        from core.musiq import next_up
 
         self.filter(id=key).update(votes=F("votes") + amount)
         _snapshot_after_commit()
@@ -206,6 +235,7 @@ class SongQueue(models.Manager):
             song = self.get(id=key)
             if song.votes <= threshold:
                 user_manager.release_queue_slot_for_song(key)
+                next_up.clear_if_locked(key)
                 song.delete()
                 return song
         except core.models.QueuedSong.DoesNotExist:
