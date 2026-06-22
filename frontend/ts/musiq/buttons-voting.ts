@@ -11,9 +11,6 @@ export function onReady() {
   const bucketLifetime = 30000; // half a minute
   let currentBucket = $.now();
 
-  // Mobile browsers are inconsistent inside the embedded transparent UI.
-  // Listen to all activation paths and dedupe them by button/key.
-  const activationEvents = 'pointerup touchend click';
   let lastActivationAt = 0;
   let lastActivationSignature = '';
 
@@ -74,6 +71,21 @@ export function onReady() {
     });
   }
 
+  function triggerVoteAnimation(buttonElement) {
+    if (!buttonElement || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+
+    buttonElement.classList.remove('furatic-vote-bump');
+    // Trigger reflow so repeated taps restart the same animation.
+    buttonElement.offsetWidth;
+    buttonElement.classList.add('furatic-vote-bump');
+
+    window.setTimeout(function() {
+      buttonElement.classList.remove('furatic-vote-bump');
+    }, 560);
+  }
+
   function activationSignature(buttonElement) {
     const button = $(buttonElement).closest('.vote-up, .vote-down');
     const keyedElement = button.closest('[data-queue-key]');
@@ -87,7 +99,7 @@ export function onReady() {
   function shouldIgnoreActivation(event, buttonElement) {
     const originalEvent = event.originalEvent || event;
 
-    if (event.type === 'pointerup') {
+    if (event.type === 'pointerdown') {
       if (
         originalEvent &&
         originalEvent.pointerType === 'mouse' &&
@@ -105,7 +117,7 @@ export function onReady() {
       }
     }
 
-    if (event.type === 'touchend') {
+    if (event.type === 'touchstart') {
       event.preventDefault();
     }
 
@@ -133,13 +145,18 @@ export function onReady() {
   }
 
   function handleVotePress(buttonElement, direction) {
-    if (!canVote()) {
+    const button = $(buttonElement);
+
+    if (button.attr('data-furatic-own-vote-blocked') === 'true') {
       return;
     }
 
-    const button = $(buttonElement);
     const key = resolveVoteKey(button);
     if (key == -1) {
+      return;
+    }
+
+    if (!canVote()) {
       return;
     }
 
@@ -164,6 +181,8 @@ export function onReady() {
       applyVisualVoteState(previousState);
     }
 
+    triggerVoteAnimation(buttonElement);
+
     if (direction === 'up') {
       if (up.hasClass('pressed')) {
         applyVisualVoteState('0');
@@ -184,21 +203,32 @@ export function onReady() {
     }
   }
 
-  $('#content').on(activationEvents, '.vote-up', function(event) {
-    if (shouldIgnoreActivation(event, this)) {
+  function handleActivation(event) {
+    const target = event.target instanceof Element ? event.target : null;
+    const buttonElement = target ? target.closest('.vote-up, .vote-down') : null;
+
+    if (!buttonElement) {
       return;
     }
 
-    handleVotePress(this, 'up');
-  });
-
-  $('#content').on(activationEvents, '.vote-down', function(event) {
-    if (shouldIgnoreActivation(event, this)) {
+    if (shouldIgnoreActivation(event, buttonElement)) {
       return;
     }
 
-    handleVotePress(this, 'down');
-  });
+    if (buttonElement.classList.contains('vote-up')) {
+      handleVotePress(buttonElement, 'up');
+      return;
+    }
+
+    handleVotePress(buttonElement, 'down');
+  }
+
+  if (window.PointerEvent) {
+    document.addEventListener('pointerdown', handleActivation, true);
+  } else {
+    document.addEventListener('touchstart', handleActivation, true);
+    document.addEventListener('click', handleActivation, true);
+  }
 }
 
 $(document).ready(() => {
