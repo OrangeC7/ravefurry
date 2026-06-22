@@ -21,7 +21,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from core import audit_log, base, obs_export, redis, site_mode, user_manager, util
 from core.models import CurrentSong, QueuedSong
-from core.musiq import audio_tail, controller, playback, song_utils
+from core.musiq import audio_tail, controller, next_up, playback, song_utils
 from core.musiq.music_provider import MusicProvider, ProviderError, WrongUrlError
 from core.musiq.playlist_provider import PlaylistProvider
 from core.musiq.song_provider import SongProvider
@@ -36,19 +36,59 @@ def ordered_queue_queryset():
 
     Votes >= 1 keep their relative priority.
     Votes < 1 are all treated equally for ordering.
+    The locked next-up song always remains first while the current song is active.
     """
     all_songs = queue.all()
-    if storage.get("interactivity") in [
+    voting_enabled = storage.get("interactivity") in [
         storage.Interactivity.upvotes_only,
         storage.Interactivity.full_voting,
-    ]:
-        return all_songs.annotate(
+    ]
+
+    if voting_enabled:
+        natural_order = all_songs.annotate(
             effective_votes=Case(
                 When(votes__gte=1, then=F("votes")),
                 default=Value(1),
                 output_field=IntegerField(),
             )
         ).order_by("-effective_votes", "index")
+    else:
+        natural_order = all_songs.order_by("index")
+
+    locked_key = next_up.resolve_locked_queue_key(
+        natural_order.values_list("id", flat=True),
+        allow_new_lock=CurrentSong.objects.exists(),
+    )
+
+    if voting_enabled:
+        ordered = all_songs.annotate(
+            effective_votes=Case(
+                When(votes__gte=1, then=F("votes")),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        )
+        if locked_key is not None:
+            ordered = ordered.annotate(
+                next_up_locked=Case(
+                    When(id=locked_key, then=Value(0)),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                )
+            ).order_by("next_up_locked", "-effective_votes", "index")
+        else:
+            ordered = ordered.order_by("-effective_votes", "index")
+        return ordered
+
+    if locked_key is not None:
+        return all_songs.annotate(
+            next_up_locked=Case(
+                When(id=locked_key, then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        ).order_by("next_up_locked", "index")
+
     return all_songs.order_by("index")
 
 if TYPE_CHECKING:
@@ -484,9 +524,11 @@ def state_dict() -> Dict[str, Any]:
 
     song_queue = []
     total_time = 0
+    locked_queue_key = next_up.get_locked_queue_key()
     for song in ordered_queue_queryset():
         song_dict = model_to_dict(song)
         song_dict = util.camelize(song_dict)
+        song_dict["isNextUpLocked"] = locked_queue_key is not None and song.id == locked_queue_key
         song_dict["durationFormatted"] = song_utils.format_seconds(
             song_dict["duration"]
         )
