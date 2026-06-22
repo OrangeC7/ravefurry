@@ -342,6 +342,14 @@ function setToastHeight() {
 
 /** Adds the ripple effect to clickable buttons */
 function ripple() {
+  const target = $(this);
+  if (
+    target.is('.vote-up, .vote-down') ||
+    target.closest('.vote-up, .vote-down, .own-song-remove, .next-up-lock').length
+  ) {
+    return;
+  }
+
   // Remove any old one
   $('.ripple').remove();
 
