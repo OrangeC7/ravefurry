@@ -79,6 +79,12 @@
     .furatic-embed-shell {
         padding: 8px 10px 16px;
         background: transparent !important;
+        opacity: 0;
+        transition: opacity 180ms ease;
+    }
+
+    .furatic-embed-shell.furatic-shell-mounted {
+        opacity: 1;
     }
     
     .furatic-embed-shell:not(.furatic-intro-complete) #music-input-card,
@@ -170,6 +176,63 @@
         margin-top: 10px;
     }
 
+    .queue-entry {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .queue-entry .queue-title {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .queue-entry .queue-info {
+        flex: 0 0 auto;
+    }
+
+    .autoscrolling-container,
+    .queue-title {
+        overflow: hidden;
+        min-width: 0;
+    }
+
+    #current-song-title,
+    .queue-title {
+        display: block;
+        max-width: 100%;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        transform: translate3d(0, 0, 0);
+        will-change: transform;
+    }
+
+    .queue-title {
+        padding-right: 22px;
+    }
+
+    .list-group-item[data-next-up-locked="true"] .queue-title {
+        padding-right: 38px;
+    }
+
+    .furatic-title-marquee {
+        text-overflow: clip !important;
+        animation: furaticTitleMarquee var(--furatic-title-marquee-duration, 10s) ease-in-out infinite;
+    }
+
+    @keyframes furaticTitleMarquee {
+        0%, 14% {
+            transform: translate3d(0, 0, 0);
+        }
+        52%, 66% {
+            transform: translate3d(var(--furatic-title-scroll-distance, -40px), 0, 0);
+        }
+        100% {
+            transform: translate3d(0, 0, 0);
+        }
+    }
+    
     .list-group-item {
         position: relative;
         overflow: hidden;
@@ -704,20 +767,30 @@
         color: #e64759 !important;
     }
     
-    .vote-up.furatic-vote-bump {
-        animation: furaticVoteBumpUp 520ms cubic-bezier(0.22, 1, 0.36, 1);
+    .queue-vote-cluster .vote-up.furatic-vote-bump {
+        animation: furaticQueueVoteBumpUp 520ms cubic-bezier(0.22, 1, 0.36, 1);
     }
     
-    .vote-down.furatic-vote-bump {
-        animation: furaticVoteBumpDown 520ms cubic-bezier(0.22, 1, 0.36, 1);
+    .queue-vote-cluster .vote-down.furatic-vote-bump {
+        animation: furaticQueueVoteBumpDown 520ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    #song-votes .vote-up.furatic-vote-bump {
+        animation: furaticCurrentVoteBumpUp 520ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    #song-votes .vote-down.furatic-vote-bump {
+        animation: furaticCurrentVoteBumpDown 520ms cubic-bezier(0.22, 1, 0.36, 1);
     }
     
-    @keyframes furaticVoteBumpUp {
+    @keyframes furaticQueueVoteBumpUp {
         0% {
             transform: translateY(0) scale(1);
+            filter: drop-shadow(0 0 0 rgba(27, 201, 142, 0));
         }
         32% {
             transform: translateY(-5px) scale(1.08);
+            filter: drop-shadow(0 0 8px rgba(27, 201, 142, 0.26));
         }
         58% {
             transform: translateY(1px) scale(0.985);
@@ -727,15 +800,18 @@
         }
         100% {
             transform: translateY(0) scale(1);
+            filter: drop-shadow(0 0 0 rgba(27, 201, 142, 0));
         }
     }
     
-    @keyframes furaticVoteBumpDown {
+    @keyframes furaticQueueVoteBumpDown {
         0% {
             transform: translateY(0) scale(1);
+            filter: drop-shadow(0 0 0 rgba(230, 71, 89, 0));
         }
         32% {
             transform: translateY(5px) scale(1.08);
+            filter: drop-shadow(0 0 8px rgba(230, 71, 89, 0.26));
         }
         58% {
             transform: translateY(-1px) scale(0.985);
@@ -745,6 +821,45 @@
         }
         100% {
             transform: translateY(0) scale(1);
+            filter: drop-shadow(0 0 0 rgba(230, 71, 89, 0));
+        }
+    }
+
+    @keyframes furaticCurrentVoteBumpUp {
+        0% {
+            transform: translate3d(0, 0, 0) scale(1);
+            filter: drop-shadow(0 0 0 rgba(27, 201, 142, 0));
+        }
+        35% {
+            transform: translate3d(0, 0, 0) scale(1.10);
+            filter: drop-shadow(0 0 10px rgba(27, 201, 142, 0.36));
+        }
+        70% {
+            transform: translate3d(0, 0, 0) scale(0.99);
+            filter: drop-shadow(0 0 5px rgba(27, 201, 142, 0.18));
+        }
+        100% {
+            transform: translate3d(0, 0, 0) scale(1);
+            filter: drop-shadow(0 0 0 rgba(27, 201, 142, 0));
+        }
+    }
+
+    @keyframes furaticCurrentVoteBumpDown {
+        0% {
+            transform: translate3d(0, 0, 0) scale(1);
+            filter: drop-shadow(0 0 0 rgba(230, 71, 89, 0));
+        }
+        35% {
+            transform: translate3d(0, 0, 0) scale(1.10);
+            filter: drop-shadow(0 0 10px rgba(230, 71, 89, 0.36));
+        }
+        70% {
+            transform: translate3d(0, 0, 0) scale(0.99);
+            filter: drop-shadow(0 0 5px rgba(230, 71, 89, 0.18));
+        }
+        100% {
+            transform: translate3d(0, 0, 0) scale(1);
+            filter: drop-shadow(0 0 0 rgba(230, 71, 89, 0));
         }
     }
     
@@ -891,6 +1006,54 @@
         color: var(--furatic-text) !important;
     }
 
+    #toast-container {
+        pointer-events: none;
+        z-index: 9999;
+    }
+
+    #toast-container .toast {
+        min-width: min(420px, calc(100vw - 28px));
+        max-width: min(420px, calc(100vw - 28px));
+        border-radius: 20px !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        background:
+            linear-gradient(180deg, rgba(255,255,255,0.105), rgba(255,255,255,0.048)),
+            rgba(7, 10, 22, 0.76) !important;
+        color: var(--furatic-text) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.06),
+            0 18px 46px rgba(0,0,0,0.42) !important;
+        -webkit-backdrop-filter: blur(24px) saturate(130%);
+        backdrop-filter: blur(24px) saturate(130%);
+        overflow: hidden;
+    }
+
+    #toast-container .toast-header {
+        border: 0 !important;
+        background: transparent !important;
+        color: inherit !important;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 13px 15px !important;
+        font-weight: 800;
+    }
+
+    #toast-container .toast-content {
+        color: rgba(238, 244, 255, 0.88) !important;
+        line-height: 1.28;
+    }
+
+    #vote-timeout {
+        height: 3px;
+        background: rgba(255,255,255,0.08);
+    }
+
+    #vote-timeout-bar {
+        height: 3px;
+        background: linear-gradient(90deg, rgba(0, 142, 248, 0.92), rgba(200, 0, 224, 0.82)) !important;
+    }
+    
     #furatic-closing-banner {
         position: relative;
         isolation: isolate;
@@ -1118,6 +1281,11 @@
 (function () {
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const shell = document.querySelector(".furatic-embed-shell");
+    if (shell) {
+        window.requestAnimationFrame(function () {
+            shell.classList.add("furatic-shell-mounted");
+        });
+    }
     const OWN_SONG_POLL_MS = 3500;
     const OWN_SONG_REFRESH_BURST = [260, 900, 1800];
     const ownQueueKeys = new Set();
@@ -1127,6 +1295,7 @@
     let decorateQueued = false;
     let errorToastTimer = 0;
     let ownVoteTooltipHideTimer = 0;
+    let ownVoteTooltipAutoHideTimer = 0;
     let ownVoteTooltipAnchor = null;
 
     try {
@@ -1363,8 +1532,8 @@
 
     function showNextUpLockTooltip(button) {
         setOwnVoteTooltipText(
-            "This song is locked in as next up.",
-            "It can still be voted out, but songs below it cannot cut in line."
+            "This song is next in line, so other songs can't cut in front of it.",
+            ""
         );
         showOwnVoteTooltip(button);
     }
@@ -1376,20 +1545,61 @@
             : null;
     }
 
-    function syncBlockedVoteButtons(row, isBlocked) {
-        if (!row) {
+    function positionOwnVoteTooltip(button) {
+        const tooltip = getOwnVoteTooltip();
+        if (!tooltip || !button) {
             return;
         }
-
-        row.querySelectorAll(".vote-up, .vote-down").forEach(function (button) {
-            if (isBlocked) {
-                button.setAttribute("data-furatic-own-vote-blocked", "true");
-                button.setAttribute("aria-disabled", "true");
-            } else {
-                button.removeAttribute("data-furatic-own-vote-blocked");
-                button.removeAttribute("aria-disabled");
+    
+        tooltip.classList.add("is-visible");
+        tooltip.setAttribute("aria-hidden", "false");
+    
+        const buttonRect = button.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect();
+        const isQueueAnchoredButton = !!button.closest("#song-queue");
+        const isNextUpLockButton = button.classList.contains("next-up-lock");
+        const tooltipNudge = isNextUpLockButton ? 18 : 0;
+    
+        let left = buttonRect.left + (buttonRect.width / 2);
+        let arrowLeft = "50%";
+    
+        if (isQueueAnchoredButton) {
+            const viewportPadding = 12;
+            const arrowEdgePadding = 24;
+    
+            const desiredTooltipLeftEdge = Math.max(
+                viewportPadding,
+                Math.min(
+                    window.innerWidth - viewportPadding - tooltipRect.width,
+                    buttonRect.right - tooltipRect.width + 18 + tooltipNudge
+                )
+            );
+    
+            left = desiredTooltipLeftEdge + (tooltipRect.width / 2);
+    
+            const arrowOffsetPx = Math.max(
+                arrowEdgePadding,
+                Math.min(
+                    tooltipRect.width - arrowEdgePadding,
+                    (buttonRect.left + (buttonRect.width / 2)) - desiredTooltipLeftEdge + tooltipNudge
+                )
+            );
+    
+            arrowLeft = arrowOffsetPx.toFixed(2) + "px";
+        } else {
+            const minLeft = 12 + (tooltipRect.width / 2);
+            const maxLeft = window.innerWidth - 12 - (tooltipRect.width / 2);
+    
+            if (minLeft <= maxLeft) {
+                left = Math.max(minLeft, Math.min(maxLeft, left));
             }
-        });
+        }
+    
+        const top = Math.max(tooltipRect.height + 18, buttonRect.top);
+    
+        tooltip.style.setProperty("--furatic-tooltip-arrow-left", arrowLeft);
+        tooltip.style.left = left.toFixed(2) + "px";
+        tooltip.style.top = top.toFixed(2) + "px";
     }
 
     function positionOwnVoteTooltip(button) {
@@ -1462,7 +1672,12 @@
 
         ownVoteTooltipAnchor = button;
         window.clearTimeout(ownVoteTooltipHideTimer);
+        window.clearTimeout(ownVoteTooltipAutoHideTimer);
         positionOwnVoteTooltip(button);
+
+        ownVoteTooltipAutoHideTimer = window.setTimeout(function () {
+            hideOwnVoteTooltip(false);
+        }, 5000);
     }
 
     function hideOwnVoteTooltip(immediate) {
@@ -1478,6 +1693,7 @@
         };
 
         window.clearTimeout(ownVoteTooltipHideTimer);
+        window.clearTimeout(ownVoteTooltipAutoHideTimer);
 
         if (immediate) {
             hide();
@@ -1652,6 +1868,36 @@
         ownedOrbAnimationFrame = window.requestAnimationFrame(animateOwnedOrbs);
     }
 
+    function syncTitleMarquees() {
+        const titles = Array.from(document.querySelectorAll("#current-song-title, .queue-title"));
+
+        titles.forEach(function (title) {
+            title.classList.remove("furatic-title-marquee");
+            title.style.removeProperty("--furatic-title-scroll-distance");
+            title.style.removeProperty("--furatic-title-marquee-duration");
+
+            const parent = title.parentElement;
+            if (!parent) {
+                return;
+            }
+
+            const available = parent.clientWidth;
+            const needed = title.scrollWidth;
+            const overflow = needed - available;
+
+            if (overflow <= 16) {
+                return;
+            }
+
+            const distance = overflow + 18;
+            const duration = Math.max(7, Math.min(18, 4 + (distance * 0.035)));
+
+            title.style.setProperty("--furatic-title-scroll-distance", "-" + distance.toFixed(0) + "px");
+            title.style.setProperty("--furatic-title-marquee-duration", duration.toFixed(2) + "s");
+            title.classList.add("furatic-title-marquee");
+        });
+    }
+    
     function showInlineError(message) {
         const toast = document.getElementById("error-toast");
         const content = toast ? toast.querySelector(".toast-content") : null;
@@ -1691,6 +1937,7 @@
         window.requestAnimationFrame(function () {
             decorateQueued = false;
             applyOwnSongDecorations();
+            syncTitleMarquees();
         });
     }
 
@@ -1970,8 +2217,13 @@
     scheduleIntroCompletion();
     refreshOwnSongState();
     scheduleDecorate();
+    syncTitleMarquees();
     ensureOwnedOrbAnimation();
     window.setInterval(refreshOwnSongState, OWN_SONG_POLL_MS);
+
+    if (window.jQuery) {
+        window.jQuery("#current-song-title").on("change", scheduleDecorate);
+    }
 })();
 </script>
 {% endblock %}
