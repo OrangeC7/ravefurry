@@ -253,19 +253,7 @@ class Playback:
 
         # select the next song depending on settings
         song: Optional[models.QueuedSong]
-        locked_key = next_up.get_locked_queue_key()
-        if locked_key is not None:
-            with transaction.atomic():
-                song = queue.confirmed().filter(id=locked_key).first()
-                if song is None:
-                    next_up.clear_locked_queue_key()
-                else:
-                    song_id = song.id
-                    queue.remove(song.id, snapshot=False)
-        else:
-            song = None
-
-        if song is None and storage.get("interactivity") in [
+        if storage.get("interactivity") in [
             storage.Interactivity.upvotes_only,
             storage.Interactivity.full_voting,
         ]:
@@ -277,7 +265,7 @@ class Playback:
                     return None, False
                 song_id = song.id
                 queue.remove(song.id, snapshot=False)
-        elif song is None and storage.get("shuffle"):
+        elif storage.get("shuffle"):
             confirmed = queue.confirmed()
             index = random.randint(0, confirmed.count() - 1)
             song_id = confirmed[index].id
