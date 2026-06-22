@@ -317,7 +317,8 @@ function syncClosingBanner(newState) {
  */
 function createQueueItem() {
   const li = $('<li/>')
-      .addClass('list-group-item');
+      .addClass('list-group-item')
+      .attr('data-next-up-locked', 'false');
   const entryDiv = $('<div/>')
       .addClass('queue-entry')
       .appendTo(li);
@@ -405,6 +406,7 @@ function createQueueItem() {
  */
 function updateInformation(entry, song) {
   entry.attr('data-queue-key', String(song.id));
+  entry.attr('data-next-up-locked', song.isNextUpLocked ? 'true' : 'false');
 
   const row = entry.find('.queue-entry');
   row.toggleClass('queue-entry-ready', Boolean(song.internalUrl));
@@ -502,6 +504,10 @@ function rebuildSongQueue(newState) {
  */
 function applyQueueChange(oldState, newState) {
   if (animationInProgress) return;
+
+  if ($('#song-queue > li[data-next-up-locked="true"]').length) {
+    $('#song-queue > li[data-next-up-locked="true"]').addClass('ui-state-disabled');
+  }
 
   if (oldState == null) {
     rebuildSongQueue(newState);
