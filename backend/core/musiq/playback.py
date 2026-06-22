@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from core import models, obs_export, redis, user_manager, playback_state_backup
 from core.lights import controller as lights_controller
-from core.musiq import audio_tail, musiq, player
+from core.musiq import audio_tail, musiq, next_up, player
 from core.settings import storage
 from core.tasks import app
 from core.musiq import song_utils
@@ -29,17 +29,56 @@ queue = models.QueuedSong.objects
 
 def _ordered_confirmed_queue():
     confirmed = queue.confirmed()
-    if storage.get("interactivity") in [
+    voting_enabled = storage.get("interactivity") in [
         storage.Interactivity.upvotes_only,
         storage.Interactivity.full_voting,
-    ]:
-        return confirmed.annotate(
+    ]
+
+    if voting_enabled:
+        natural_order = confirmed.annotate(
             effective_votes=Case(
                 When(votes__gte=1, then=F("votes")),
                 default=Value(1),
                 output_field=IntegerField(),
             )
         ).order_by("-effective_votes", "index")
+    else:
+        natural_order = confirmed.order_by("index")
+
+    locked_key = next_up.resolve_locked_queue_key(
+        natural_order.values_list("id", flat=True),
+        allow_new_lock=False,
+    )
+
+    if voting_enabled:
+        ordered = confirmed.annotate(
+            effective_votes=Case(
+                When(votes__gte=1, then=F("votes")),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        )
+        if locked_key is not None:
+            ordered = ordered.annotate(
+                next_up_locked=Case(
+                    When(id=locked_key, then=Value(0)),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                )
+            ).order_by("next_up_locked", "-effective_votes", "index")
+        else:
+            ordered = ordered.order_by("-effective_votes", "index")
+        return ordered
+
+    if locked_key is not None:
+        return confirmed.annotate(
+            next_up_locked=Case(
+                When(id=locked_key, then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        ).order_by("next_up_locked", "index")
+
     return confirmed.order_by("index")
 
 def request_operator_command(command: str) -> None:
@@ -214,7 +253,19 @@ class Playback:
 
         # select the next song depending on settings
         song: Optional[models.QueuedSong]
-        if storage.get("interactivity") in [
+        locked_key = next_up.get_locked_queue_key()
+        if locked_key is not None:
+            with transaction.atomic():
+                song = queue.confirmed().filter(id=locked_key).first()
+                if song is None:
+                    next_up.clear_locked_queue_key()
+                else:
+                    song_id = song.id
+                    queue.remove(song.id, snapshot=False)
+        else:
+            song = None
+
+        if song is None and storage.get("interactivity") in [
             storage.Interactivity.upvotes_only,
             storage.Interactivity.full_voting,
         ]:
@@ -226,7 +277,7 @@ class Playback:
                     return None, False
                 song_id = song.id
                 queue.remove(song.id, snapshot=False)
-        elif storage.get("shuffle"):
+        elif song is None and storage.get("shuffle"):
             confirmed = queue.confirmed()
             index = random.randint(0, confirmed.count() - 1)
             song_id = confirmed[index].id
