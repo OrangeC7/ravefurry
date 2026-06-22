@@ -3,7 +3,6 @@ import {
   localStorageGet,
   infoToast, successToast, warningToast, errorToast,
 } from '../base';
-import {setStoredVote} from './vote-state';
 
 let musicRequestInFlight = false;
 
@@ -82,7 +81,6 @@ export function requestArchivedMusic(key, query,
         platform: platform,
       }).done(function(response) {
     successToast(response.message, '"' + query + '"');
-    setStoredVote(response.key, '+');
   }).fail(function(response) {
     errorToast(response.responseText, '"' + query + '"');
   });
@@ -108,7 +106,6 @@ export function requestNewMusic(query, platform = localStorageGet('platform')) {
         platform: platform,
       }).done(function(response) {
     successToast(response.message, '"' + query + '"');
-    setStoredVote(response.key, '+');
   }).fail(function(response) {
     errorToast(response.responseText, '"' + query + '"');
   }).always(function() {
