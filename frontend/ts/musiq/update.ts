@@ -72,6 +72,28 @@ const downloadSvg = `
  </g>
 </svg>`;
 
+function normalizeInteractivity(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function isVotingMode() {
+  const mode = normalizeInteractivity(INTERACTIVITY);
+
+  return mode === normalizeInteractivity(INTERACTIVITIES.fullVoting) ||
+    mode === normalizeInteractivity(INTERACTIVITIES.upvotesOnly) ||
+    mode === 'upanddownvoting' ||
+    mode === 'upvotesonly' ||
+    mode === 'fullvoting';
+}
+
+function isFullVotingMode() {
+  const mode = normalizeInteractivity(INTERACTIVITY);
+
+  return mode === normalizeInteractivity(INTERACTIVITIES.fullVoting) ||
+    mode === 'upanddownvoting' ||
+    mode === 'fullvoting';
+}
+
 function isVotingMode() {
   return INTERACTIVITY === INTERACTIVITIES.fullVoting ||
     INTERACTIVITY === INTERACTIVITIES.upvotesOnly ||
