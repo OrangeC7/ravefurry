@@ -341,6 +341,10 @@ function createQueueItem() {
       .appendTo(entryDiv)
       .hide();
 
+  $('<span/>')
+      .addClass('queue-info-time')
+      .appendTo(entryDiv);
+
   $('<div/>')
       .addClass('queue-title')
       .appendTo(entryDiv);
@@ -348,10 +352,6 @@ function createQueueItem() {
   const info = $('<div/>')
       .addClass('queue-info')
       .appendTo(entryDiv);
-
-  $('<span/>')
-      .addClass('queue-info-time')
-      .appendTo(info);
 
   $('<span/>')
       .addClass('vote-indicators')
