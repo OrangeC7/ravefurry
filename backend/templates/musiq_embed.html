@@ -1221,6 +1221,119 @@
             filter: none;
         }
     }
+
+    /* Final Furatic queue layout polish: duration | title | votes/admin */
+    #song-queue > li,
+    #song-queue > .list-group-item {
+        min-height: 66px !important;
+        padding: 11px 10px !important;
+    }
+
+    #song-queue > li[data-next-up-locked="true"],
+    #song-queue > .list-group-item[data-next-up-locked="true"] {
+        padding-top: 15px !important;
+    }
+
+    #song-queue .queue-entry {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        gap: 8px !important;
+        min-width: 0 !important;
+        height: auto !important;
+    }
+
+    #song-queue .queue-info-time {
+        order: 0 !important;
+        flex: 0 0 auto !important;
+        width: 4.4ch !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        text-align: left;
+        font-size: 0.82rem;
+        font-weight: 750;
+        color: var(--furatic-muted) !important;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+    }
+
+    #song-queue .queue-title {
+        order: 1 !important;
+        flex: 1 1 auto !important;
+        width: auto !important;
+        min-width: 0 !important;
+        padding: 0 18px 0 0 !important;
+        overflow: hidden !important;
+        line-height: 1.25;
+    }
+
+    #song-queue .queue-info {
+        order: 2 !important;
+        flex: 0 0 auto !important;
+        width: auto !important;
+        min-width: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+    }
+
+    #song-queue .queue-info-controls {
+        margin: 0 !important;
+        padding-right: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        flex: 0 0 auto !important;
+    }
+
+    #song-queue .queue-vote-cluster {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 6px !important;
+        min-width: 78px;
+        flex: 0 0 auto !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+
+    #song-queue .queue-vote-cluster .vote-up,
+    #song-queue .queue-vote-cluster .vote-down,
+    #song-queue .queue-vote-cluster .queue-vote-count {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+
+    #song-queue .queue-vote-cluster .vote-up,
+    #song-queue .queue-vote-cluster .vote-down {
+        min-width: 28px !important;
+        min-height: 28px !important;
+        padding: 5px !important;
+    }
+
+    #song-queue .queue-vote-count {
+        min-width: 2ch !important;
+        text-align: center;
+        line-height: 1;
+    }
+
+    #song-queue .list-group-item[data-next-up-locked="true"] .queue-info-controls {
+        padding-right: 0 !important;
+    }
+
+    #song-queue .next-up-lock {
+        top: 7px;
+        right: 9px;
+    }
     
     @media (max-width: 620px) {
         .furatic-embed-shell {
@@ -1628,6 +1741,7 @@
         const isQueueAnchoredButton = !!button.closest("#song-queue");
         const isNextUpLockButton = button.classList.contains("next-up-lock");
         const tooltipNudge = isNextUpLockButton ? 18 : 0;
+        const arrowNudge = isNextUpLockButton ? 20 : 0;
     
         let left = buttonRect.left + (buttonRect.width / 2);
         let arrowLeft = "50%";
@@ -1650,7 +1764,7 @@
                 arrowEdgePadding,
                 Math.min(
                     tooltipRect.width - arrowEdgePadding,
-                    (buttonRect.left + (buttonRect.width / 2)) - desiredTooltipLeftEdge + tooltipNudge
+                    (buttonRect.left + (buttonRect.width / 2)) - desiredTooltipLeftEdge + tooltipNudge + arrowNudge
                 )
             );
     
