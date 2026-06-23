@@ -2166,10 +2166,10 @@
             lock.type = "button";
             lock.className = "next-up-lock";
             lock.setAttribute("aria-label", "This song is locked as next up");
-            lock.setAttribute("title", "This song is locked as next up");
+            lock.removeAttribute("title");
             lock.innerHTML = '<i class="fas fa-lock" aria-hidden="true"></i>';
             row.appendChild(lock);
-
+        
             if (prefersReducedMotion) {
                 lock.classList.add("is-visible");
             } else {
@@ -2177,6 +2177,10 @@
                     lock.classList.add("is-visible");
                 });
             }
+        }
+        
+        if (lock) {
+            lock.removeAttribute("title");
         }
     }
     
