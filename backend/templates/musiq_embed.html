@@ -668,6 +668,7 @@
         min-width: 4.4ch;
         color: var(--furatic-muted) !important;
         text-shadow: 0 1px 10px rgba(0,0,0,0.24);
+        margin-left: -1px;
     }
 
     #current-song-time-total {
@@ -1264,7 +1265,6 @@
         width: 4.4ch !important;
         height: 30px !important;
         margin: 0 !important;
-        padding: 0 !important;
         display: inline-flex !important;
         align-items: center !important;
         justify-content: flex-start !important;
@@ -1275,6 +1275,8 @@
         color: var(--furatic-muted) !important;
         font-variant-numeric: tabular-nums;
         line-height: 1 !important;
+        padding-right: 35px;
+        margin-left: -2px;
     }
 
     #song-queue .queue-title {
@@ -1359,6 +1361,7 @@
         opacity: 1 !important;
         pointer-events: auto !important;
         line-height: 1 !important;
+        padding-right: 20px;
     }
 
     #song-queue .queue-vote-cluster .vote-up,
@@ -1374,6 +1377,7 @@
         pointer-events: auto !important;
         line-height: 1 !important;
         vertical-align: middle !important;
+        margin: -9px;
     }
 
     #song-queue .queue-vote-cluster .vote-up,
@@ -1446,7 +1450,7 @@
                 {% endif %}
                 <div class="current-song-main">
                     <div class="autoscrolling-container">
-                        <span id="current-song-title">Currently Empty</span>
+                        <span id="current-song-title">No music in queue</span>
                     </div>
                 </div>
             </div>
