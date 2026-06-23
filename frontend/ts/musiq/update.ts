@@ -369,6 +369,9 @@ function createQueueItem() {
       .addClass('fas')
       .addClass('fa-chevron-circle-up')
       .addClass('vote-up')
+      .attr('role', 'button')
+      .attr('tabindex', '0')
+      .attr('aria-label', 'Upvote this song')
       .appendTo(voteCluster);
 
   $('<span/>')
@@ -380,6 +383,9 @@ function createQueueItem() {
       .addClass('fas')
       .addClass('fa-chevron-circle-down')
       .addClass('vote-down')
+      .attr('role', 'button')
+      .attr('tabindex', '0')
+      .attr('aria-label', 'Downvote this song')
       .appendTo(voteCluster);
 
   if (CONTROLS_ENABLED) {
