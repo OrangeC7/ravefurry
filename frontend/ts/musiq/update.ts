@@ -72,40 +72,6 @@ const downloadSvg = `
  </g>
 </svg>`;
 
-function normalizeInteractivity(value) {
-  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
-}
-
-function isVotingMode() {
-  const mode = normalizeInteractivity(INTERACTIVITY);
-
-  return mode === normalizeInteractivity(INTERACTIVITIES.fullVoting) ||
-    mode === normalizeInteractivity(INTERACTIVITIES.upvotesOnly) ||
-    mode === 'upanddownvoting' ||
-    mode === 'upvotesonly' ||
-    mode === 'fullvoting';
-}
-
-function isFullVotingMode() {
-  const mode = normalizeInteractivity(INTERACTIVITY);
-
-  return mode === normalizeInteractivity(INTERACTIVITIES.fullVoting) ||
-    mode === 'upanddownvoting' ||
-    mode === 'fullvoting';
-}
-
-function isVotingMode() {
-  return INTERACTIVITY === INTERACTIVITIES.fullVoting ||
-    INTERACTIVITY === INTERACTIVITIES.upvotesOnly ||
-    INTERACTIVITY === 'Up- and Downvoting' ||
-    INTERACTIVITY === 'Upvotes Only';
-}
-
-function isFullVotingMode() {
-  return INTERACTIVITY === INTERACTIVITIES.fullVoting ||
-    INTERACTIVITY === 'Up- and Downvoting';
-}
-
 /** Clear any stored state. */
 export function clearState() {
   state = null;
@@ -352,19 +318,21 @@ function createQueueItem() {
   const li = $('<li/>')
       .addClass('list-group-item')
       .attr('data-next-up-locked', 'false');
+
   const entryDiv = $('<div/>')
       .addClass('queue-entry')
+      .addClass('queue-voting-layout')
       .appendTo(li);
-  if (isVotingMode()) {
-    entryDiv.addClass('queue-voting-layout');
-  }
+
   const downloadIcon = $('<div/>')
       .addClass('download-icon')
       .addClass('queue-handle')
       .appendTo(entryDiv);
+
   $('<div/>')
       .addClass('download-overlay')
       .appendTo(downloadIcon);
+
   $(downloadSvg).appendTo(downloadIcon);
 
   $('<div/>')
@@ -372,62 +340,66 @@ function createQueueItem() {
       .addClass('queue-handle')
       .appendTo(entryDiv)
       .hide();
+
   $('<div/>')
       .addClass('queue-title')
       .appendTo(entryDiv);
+
   const info = $('<div/>')
       .addClass('queue-info')
       .appendTo(entryDiv);
+
   $('<span/>')
       .addClass('queue-info-time')
       .appendTo(info);
+
   $('<span/>')
       .addClass('vote-indicators')
       .appendTo(info);
+
   const controls = $('<span/>')
       .addClass('queue-info-controls')
       .appendTo(info);
 
-  let actionControls = controls;
-  if (isVotingMode()) {
-    const voteCluster = $('<span/>')
-        .addClass('queue-vote-cluster')
-        .appendTo(controls);
-    $('<i/>')
-        .addClass('fas')
-        .addClass('fa-chevron-circle-up')
-        .addClass('vote-up')
-        .appendTo(voteCluster);
-    $('<span/>')
-        .addClass('queue-vote-count')
-        .text('0')
-        .appendTo(voteCluster);
-    if (isFullVotingMode()) {
-      $('<i/>')
-          .addClass('fas')
-          .addClass('fa-chevron-circle-down')
-          .addClass('vote-down')
-          .appendTo(voteCluster);
-    }
-    if (CONTROLS_ENABLED) {
-      actionControls = $('<span/>')
-          .addClass('queue-admin-controls')
-          .appendTo(controls);
-    }
-  }
+  const voteCluster = $('<span/>')
+      .addClass('queue-vote-cluster')
+      .appendTo(controls);
+
+  $('<i/>')
+      .addClass('fas')
+      .addClass('fa-chevron-circle-up')
+      .addClass('vote-up')
+      .appendTo(voteCluster);
+
+  $('<span/>')
+      .addClass('queue-vote-count')
+      .text('0')
+      .appendTo(voteCluster);
+
+  $('<i/>')
+      .addClass('fas')
+      .addClass('fa-chevron-circle-down')
+      .addClass('vote-down')
+      .appendTo(voteCluster);
 
   if (CONTROLS_ENABLED) {
+    const actionControls = $('<span/>')
+        .addClass('queue-admin-controls')
+        .appendTo(controls);
+
     $('<i/>')
         .addClass('fas')
         .addClass('fa-level-up-alt')
         .addClass('prioritize')
         .appendTo(actionControls);
+
     $('<i/>')
         .addClass('fas')
         .addClass('fa-trash-alt')
         .addClass('remove')
         .appendTo(actionControls);
   }
+
   return li;
 }
 
