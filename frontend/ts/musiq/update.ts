@@ -72,6 +72,20 @@ const downloadSvg = `
  </g>
 </svg>`;
 
+function isVotingMode() {
+  return INTERACTIVITY === INTERACTIVITIES.fullVoting ||
+    INTERACTIVITY === INTERACTIVITIES.upvotesOnly ||
+    INTERACTIVITY === INTERACTIVITIES.full_voting ||
+    INTERACTIVITY === INTERACTIVITIES.upvotes_only ||
+    INTERACTIVITY === 'Up- and Downvoting' ||
+    INTERACTIVITY === 'Upvotes Only';
+}
+
+function isFullVotingMode() {
+  return INTERACTIVITY === INTERACTIVITIES.fullVoting ||
+    INTERACTIVITY === INTERACTIVITIES.full_voting ||
+    INTERACTIVITY === 'Up- and Downvoting';
+}
 
 /** Clear any stored state. */
 export function clearState() {
@@ -322,8 +336,7 @@ function createQueueItem() {
   const entryDiv = $('<div/>')
       .addClass('queue-entry')
       .appendTo(li);
-  if (INTERACTIVITY === INTERACTIVITIES.fullVoting ||
-    INTERACTIVITY === INTERACTIVITIES.upvotesOnly) {
+  if (isVotingMode()) {
     entryDiv.addClass('queue-voting-layout');
   }
   const downloadIcon = $('<div/>')
@@ -357,8 +370,7 @@ function createQueueItem() {
       .appendTo(info);
 
   let actionControls = controls;
-  if (INTERACTIVITY === INTERACTIVITIES.fullVoting ||
-    INTERACTIVITY === INTERACTIVITIES.upvotesOnly) {
+  if (isVotingMode()) {
     const voteCluster = $('<span/>')
         .addClass('queue-vote-cluster')
         .appendTo(controls);
@@ -371,7 +383,7 @@ function createQueueItem() {
         .addClass('queue-vote-count')
         .text('0')
         .appendTo(voteCluster);
-    if (INTERACTIVITY === INTERACTIVITIES.fullVoting) {
+    if (isFullVotingMode()) {
       $('<i/>')
           .addClass('fas')
           .addClass('fa-chevron-circle-down')
