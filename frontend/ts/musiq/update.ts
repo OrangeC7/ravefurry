@@ -75,15 +75,12 @@ const downloadSvg = `
 function isVotingMode() {
   return INTERACTIVITY === INTERACTIVITIES.fullVoting ||
     INTERACTIVITY === INTERACTIVITIES.upvotesOnly ||
-    INTERACTIVITY === INTERACTIVITIES.full_voting ||
-    INTERACTIVITY === INTERACTIVITIES.upvotes_only ||
     INTERACTIVITY === 'Up- and Downvoting' ||
     INTERACTIVITY === 'Upvotes Only';
 }
 
 function isFullVotingMode() {
   return INTERACTIVITY === INTERACTIVITIES.fullVoting ||
-    INTERACTIVITY === INTERACTIVITIES.full_voting ||
     INTERACTIVITY === 'Up- and Downvoting';
 }
 
