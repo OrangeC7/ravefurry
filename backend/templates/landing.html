@@ -135,6 +135,14 @@
           drop-shadow(0 0 22px rgba(0,142,248,0.12));
       }
 
+      @supports (-webkit-touch-callout: none) {
+        .brand > img.reveal-stage,
+        body.is-ready .brand > img.reveal-stage {
+          -webkit-filter: none !important;
+          filter: none !important;
+        }
+      }
+      
       .notify-row {
         display: flex;
         flex-wrap: wrap;
