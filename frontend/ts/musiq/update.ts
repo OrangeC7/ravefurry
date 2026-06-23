@@ -294,8 +294,9 @@ function insertDisplayName(element, song) {
   if (song.artist == null || song.artist == '') {
     element.text(song.title);
   } else {
-    element.text(' – ' + song.title);
-    element.prepend($('<strong/>').text(song.artist));
+    element.empty();
+    element.append($('<strong/>').text(song.artist));
+    element.append($('<span/>').addClass('queue-song-title-text').text(' – ' + song.title));
   }
 }
 
