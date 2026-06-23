@@ -1225,13 +1225,18 @@
     /* Final Furatic queue layout polish: duration | title | votes/admin */
     #song-queue > li,
     #song-queue > .list-group-item {
+        position: relative;
         min-height: 66px !important;
-        padding: 11px 10px !important;
+        padding: 10px 10px !important;
+        display: flex !important;
+        align-items: center !important;
+        overflow: hidden;
     }
 
     #song-queue > li[data-next-up-locked="true"],
     #song-queue > .list-group-item[data-next-up-locked="true"] {
-        padding-top: 15px !important;
+        padding-top: 10px !important;
+        padding-right: 10px !important;
     }
 
     #song-queue .queue-entry {
@@ -1240,22 +1245,36 @@
         flex-wrap: nowrap !important;
         align-items: center !important;
         gap: 8px !important;
+        width: 100% !important;
         min-width: 0 !important;
         height: auto !important;
+        min-height: 34px !important;
+        line-height: 1 !important;
+    }
+
+    #song-queue .list-group-item.furatic-owned-song .queue-entry,
+    #song-queue > li.furatic-owned-song .queue-entry {
+        padding-left: 42px !important;
+        box-sizing: border-box;
     }
 
     #song-queue .queue-info-time {
         order: 0 !important;
-        flex: 0 0 auto !important;
+        flex: 0 0 4.4ch !important;
         width: 4.4ch !important;
+        height: 30px !important;
         margin: 0 !important;
         padding: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        align-self: center !important;
         text-align: left;
         font-size: 0.82rem;
         font-weight: 750;
         color: var(--furatic-muted) !important;
         font-variant-numeric: tabular-nums;
-        line-height: 1;
+        line-height: 1 !important;
     }
 
     #song-queue .queue-title {
@@ -1263,9 +1282,28 @@
         flex: 1 1 auto !important;
         width: auto !important;
         min-width: 0 !important;
+        height: 30px !important;
+        margin: 0 !important;
         padding: 0 18px 0 0 !important;
         overflow: hidden !important;
-        line-height: 1.25;
+        display: flex !important;
+        align-items: center !important;
+        align-self: center !important;
+        white-space: nowrap !important;
+        text-overflow: ellipsis;
+        line-height: 1.18 !important;
+    }
+
+    #song-queue .queue-title > strong,
+    #song-queue .queue-title > span {
+        display: inline !important;
+        line-height: 1.18 !important;
+        vertical-align: middle !important;
+    }
+
+    #song-queue .list-group-item[data-next-up-locked="true"] .queue-title,
+    #song-queue > li[data-next-up-locked="true"] .queue-title {
+        padding-right: 18px !important;
     }
 
     #song-queue .queue-info {
@@ -1273,44 +1311,69 @@
         flex: 0 0 auto !important;
         width: auto !important;
         min-width: auto !important;
+        height: 30px !important;
         margin: 0 !important;
         padding: 0 !important;
         overflow: visible !important;
         display: inline-flex !important;
         align-items: center !important;
+        align-self: center !important;
         gap: 8px !important;
+        line-height: 1 !important;
+    }
+
+    #song-queue .vote-indicators {
+        height: 30px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        align-self: center !important;
     }
 
     #song-queue .queue-info-controls {
+        height: 30px !important;
         margin: 0 !important;
         padding-right: 0 !important;
         display: inline-flex !important;
         align-items: center !important;
+        align-self: center !important;
         gap: 6px !important;
         flex: 0 0 auto !important;
+        line-height: 1 !important;
+    }
+
+    #song-queue .list-group-item[data-next-up-locked="true"] .queue-info-controls,
+    #song-queue > li[data-next-up-locked="true"] .queue-info-controls {
+        padding-right: 0 !important;
     }
 
     #song-queue .queue-vote-cluster {
+        height: 30px !important;
+        min-width: 78px;
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
+        align-self: center !important;
         gap: 6px !important;
-        min-width: 78px;
         flex: 0 0 auto !important;
         visibility: visible !important;
         opacity: 1 !important;
         pointer-events: auto !important;
+        line-height: 1 !important;
     }
 
     #song-queue .queue-vote-cluster .vote-up,
     #song-queue .queue-vote-cluster .vote-down,
     #song-queue .queue-vote-cluster .queue-vote-count {
+        height: 28px !important;
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
+        align-self: center !important;
         visibility: visible !important;
         opacity: 1 !important;
         pointer-events: auto !important;
+        line-height: 1 !important;
+        vertical-align: middle !important;
     }
 
     #song-queue .queue-vote-cluster .vote-up,
@@ -1323,11 +1386,25 @@
     #song-queue .queue-vote-count {
         min-width: 2ch !important;
         text-align: center;
-        line-height: 1;
+        font-weight: 700;
+        font-size: 1.18rem;
     }
 
-    #song-queue .list-group-item[data-next-up-locked="true"] .queue-info-controls {
-        padding-right: 0 !important;
+    #song-queue .own-song-remove {
+        top: 50% !important;
+        transform: translateY(-50%) scale(0.94);
+    }
+
+    #song-queue .own-song-remove.is-visible {
+        transform: translateY(-50%) scale(1);
+    }
+
+    #song-queue .own-song-remove:active {
+        transform: translateY(-50%) scale(0.96);
+    }
+
+    #song-queue .own-song-remove:disabled {
+        transform: translateY(-50%) scale(0.96);
     }
 
     #song-queue .next-up-lock {
