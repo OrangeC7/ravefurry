@@ -176,12 +176,23 @@
         margin-top: 10px;
     }
 
+    #song-queue > li,
+    #song-queue > .list-group-item {
+        min-height: 64px;
+        padding: 12px 14px !important;
+    }
+
+    #song-queue > li[data-next-up-locked="true"],
+    #song-queue > .list-group-item[data-next-up-locked="true"] {
+        padding-top: 17px !important;
+    }
+
     .queue-entry {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
         min-width: 0;
         height: auto !important;
     }
@@ -192,8 +203,9 @@
         width: auto !important;
         order: initial !important;
         padding-left: 0 !important;
-        padding-right: 22px !important;
+        padding-right: 18px !important;
         overflow: hidden;
+        line-height: 1.25;
     }
 
     .queue-entry .queue-info {
@@ -209,7 +221,11 @@
     }
 
     .list-group-item[data-next-up-locked="true"] .queue-entry .queue-title {
-        padding-right: 38px !important;
+        padding-right: 34px !important;
+    }
+
+    .list-group-item[data-next-up-locked="true"] .queue-entry .queue-info-controls {
+        padding-right: 24px;
     }
 
     .autoscrolling-container,
@@ -439,8 +455,8 @@
     
     .next-up-lock {
         position: absolute;
-        top: 7px;
-        right: 9px;
+        top: 8px;
+        right: 11px;
         z-index: 5;
         width: 14px;
         height: 14px;
@@ -789,9 +805,9 @@
     
     .queue-vote-cluster .vote-up,
     .queue-vote-cluster .vote-down {
-        min-width: 20px;
-        min-height: 20px;
-        padding: 4px;
+        min-width: 28px;
+        min-height: 28px;
+        padding: 5px;
     }
     
     .vote-up.pressed {
@@ -1255,9 +1271,9 @@
             </div>
             <div id="song-votes">
                 <div class="current-song-vote-indicators" id="current-song-upvote-indicators"></div>
-                <i class="fas fa-chevron-circle-up vote-up" id="current-song-vote-up"></i>
+                <i class="fas fa-chevron-circle-up vote-up" id="current-song-vote-up" role="button" tabindex="0" aria-label="Upvote current song"></i>
                 <span id="current-song-votes"></span>
-                <i class="fas fa-chevron-circle-down vote-down" id="current-song-vote-down"></i>
+                <i class="fas fa-chevron-circle-down vote-down" id="current-song-vote-down" role="button" tabindex="0" aria-label="Downvote current song"></i>
                 <div class="current-song-vote-indicators" id="current-song-downvote-indicators"></div>
             </div>
         </li>
