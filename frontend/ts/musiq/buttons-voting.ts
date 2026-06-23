@@ -11,9 +11,6 @@ export function onReady() {
   const bucketLifetime = 30000; // half a minute
   let currentBucket = $.now();
 
-  // Search/request already works on mobile because it uses click/tap.
-  // Votes need the same mobile-safe path, with touch/pointer dedupe.
-  const activationEvents = 'click tap touchend pointerup';
   let lastActivationAt = 0;
   let lastActivationSignature = '';
 
@@ -44,32 +41,12 @@ export function onReady() {
     return false;
   }
 
-  function vote(button, key, amount, onFail = null) {
-    let votes = button.closest('.queue-entry').find('.queue-vote-count');
-    if (votes.length == 0) {
-      votes = button.siblings('#current-song-votes');
-    }
-
-    const currentVotes = Number(votes.text()) || 0;
-    votes.text(String(currentVotes + amount));
-
-    $.post(urls['musiq']['vote'], {
-      key: key,
-      amount: amount,
-    }).fail(function(response) {
-      errorToast(response.responseText || 'Could not register vote');
-
-      const failedVotes = Number(votes.text()) || 0;
-      votes.text(String(failedVotes - amount));
-
-      if (onFail) {
-        onFail();
-      }
-    });
-  }
-
   function triggerVoteAnimation(buttonElement) {
-    if (!buttonElement || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (
+      !buttonElement ||
+      !(buttonElement instanceof HTMLElement) ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
       return;
     }
 
@@ -82,6 +59,15 @@ export function onReady() {
     }, 560);
   }
 
+  function findVoteButton(event) {
+    const target = event && event.target instanceof Element ? event.target : null;
+    if (!target) {
+      return null;
+    }
+
+    return target.closest('.vote-up, .vote-down');
+  }
+
   function activationSignature(buttonElement) {
     const button = $(buttonElement).closest('.vote-up, .vote-down');
     const keyedElement = button.closest('[data-queue-key]');
@@ -92,34 +78,38 @@ export function onReady() {
     return direction + ':' + key + ':' + id;
   }
 
-  function shouldIgnoreActivation(event, buttonElement) {
-    const originalEvent = event.originalEvent || event;
+  function markActivationHandled(event, buttonElement) {
+    const originalEvent = event;
 
     if (
       event.type === 'pointerup' &&
-      originalEvent &&
-      originalEvent.pointerType === 'mouse' &&
-      originalEvent.button !== 0
+      event instanceof PointerEvent &&
+      event.pointerType === 'mouse' &&
+      event.button !== 0
     ) {
-      return true;
+      return false;
     }
 
     const now = Date.now();
     const signature = activationSignature(buttonElement);
 
-    if (signature === lastActivationSignature && now - lastActivationAt < 520) {
-      return true;
+    if (signature === lastActivationSignature && now - lastActivationAt < 650) {
+      if (originalEvent.cancelable) {
+        originalEvent.preventDefault();
+      }
+      originalEvent.stopImmediatePropagation();
+      return false;
     }
 
     lastActivationSignature = signature;
     lastActivationAt = now;
 
-    if (!originalEvent || originalEvent.cancelable !== false) {
-      event.preventDefault();
+    if (originalEvent.cancelable) {
+      originalEvent.preventDefault();
     }
-    event.stopPropagation();
+    originalEvent.stopImmediatePropagation();
 
-    return false;
+    return true;
   }
 
   function resolveVoteKey(button) {
@@ -127,28 +117,71 @@ export function onReady() {
       if (state == null || state.currentSong == null) {
         return -1;
       }
+
       return state.currentSong.queueKey;
     }
 
     return keyOfElement(button);
   }
 
-  function handleVotePress(buttonElement, direction) {
+  function submitVote(button, key, amount, onFail = null) {
+    let votes = button.closest('.queue-entry').find('.queue-vote-count');
+    if (votes.length == 0) {
+      votes = button.siblings('#current-song-votes');
+    }
+
+    const currentVotes = Number(votes.text()) || 0;
+    votes.text(String(currentVotes + amount));
+
+    const form = new URLSearchParams();
+    form.set('key', String(key));
+    form.set('amount', String(amount));
+    form.set('csrfmiddlewaretoken', CSRF_TOKEN);
+
+    fetch(urls['musiq']['vote'], {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'X-CSRFToken': CSRF_TOKEN,
+      },
+      body: form.toString(),
+    }).then(async function(response) {
+      if (response.ok) {
+        return;
+      }
+
+      const text = await response.text();
+      throw new Error(text || 'Could not register vote');
+    }).catch(function(error) {
+      errorToast(error && error.message ? error.message : 'Could not register vote');
+
+      const failedVotes = Number(votes.text()) || 0;
+      votes.text(String(failedVotes - amount));
+
+      if (onFail) {
+        onFail();
+      }
+    });
+  }
+
+  function handleVotePress(buttonElement) {
     const button = $(buttonElement);
 
     if (button.attr('data-furatic-own-vote-blocked') === 'true') {
-      return;
+      return false;
     }
 
     const key = resolveVoteKey(button);
     if (key == -1) {
-      return;
+      return false;
     }
 
     if (!canVote()) {
-      return;
+      return false;
     }
 
+    const direction = button.hasClass('vote-up') ? 'up' : 'down';
     const up = direction === 'up' ? button : button.siblings('.vote-up');
     const down = direction === 'down' ? button : button.siblings('.vote-down');
     const previousState = up.hasClass('pressed') ? '+' : down.hasClass('pressed') ? '-' : '0';
@@ -175,37 +208,55 @@ export function onReady() {
     if (direction === 'up') {
       if (up.hasClass('pressed')) {
         applyVisualVoteState('0');
-        vote(button, key, -1, restorePreviousState);
+        submitVote(button, key, -1, restorePreviousState);
       } else {
         applyVisualVoteState('+');
-        vote(button, key, down.hasClass('pressed') ? 2 : 1, restorePreviousState);
+        submitVote(button, key, down.hasClass('pressed') ? 2 : 1, restorePreviousState);
       }
-      return;
+      return true;
     }
 
     if (down.hasClass('pressed')) {
       applyVisualVoteState('0');
-      vote(button, key, 1, restorePreviousState);
+      submitVote(button, key, 1, restorePreviousState);
     } else {
       applyVisualVoteState('-');
-      vote(button, key, up.hasClass('pressed') ? -2 : -1, restorePreviousState);
+      submitVote(button, key, up.hasClass('pressed') ? -2 : -1, restorePreviousState);
     }
+
+    return true;
   }
 
-  $('#content').on(activationEvents, '.vote-up, .vote-down', function(event) {
-    if ($(this).attr('data-furatic-own-vote-blocked') === 'true') {
+  function handleVoteActivation(event) {
+    const buttonElement = findVoteButton(event);
+    if (!buttonElement) {
       return;
     }
 
-    if (shouldIgnoreActivation(event, this)) {
+    if (buttonElement.getAttribute('data-furatic-own-vote-blocked') === 'true') {
       return;
     }
 
-    if ($(this).hasClass('vote-up')) {
-      handleVotePress(this, 'up');
-    } else {
-      handleVotePress(this, 'down');
+    if (!markActivationHandled(event, buttonElement)) {
+      return;
     }
+
+    handleVotePress(buttonElement);
+  }
+
+  document.addEventListener('pointerup', handleVoteActivation, {
+    capture: true,
+    passive: false,
+  });
+
+  document.addEventListener('touchend', handleVoteActivation, {
+    capture: true,
+    passive: false,
+  });
+
+  document.addEventListener('click', handleVoteActivation, {
+    capture: true,
+    passive: false,
   });
 }
 
