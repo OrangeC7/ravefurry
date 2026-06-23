@@ -177,19 +177,39 @@
     }
 
     .queue-entry {
-        display: flex;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
         align-items: center;
         gap: 10px;
         min-width: 0;
+        height: auto !important;
     }
 
     .queue-entry .queue-title {
-        flex: 1 1 auto;
+        flex: 1 1 auto !important;
         min-width: 0;
+        width: auto !important;
+        order: initial !important;
+        padding-left: 0 !important;
+        padding-right: 22px !important;
+        overflow: hidden;
     }
 
     .queue-entry .queue-info {
-        flex: 0 0 auto;
+        flex: 0 0 auto !important;
+        width: auto !important;
+        order: initial !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        overflow: visible !important;
+        display: inline-flex !important;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .list-group-item[data-next-up-locked="true"] .queue-entry .queue-title {
+        padding-right: 38px !important;
     }
 
     .autoscrolling-container,
@@ -690,7 +710,8 @@
     }
     
     .queue-entry .queue-info-time {
-        margin-right: auto;
+        margin-right: 0 !important;
+        flex: 0 0 auto;
     }
     
     .queue-entry .queue-info-controls {
@@ -702,10 +723,24 @@
     }
     
     .queue-entry .queue-vote-cluster {
-        display: inline-flex;
+        display: inline-flex !important;
         align-items: center;
         gap: 6px;
         flex: 0 0 auto;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+
+    .queue-entry .queue-vote-cluster .vote-up,
+    .queue-entry .queue-vote-cluster .vote-down,
+    .queue-entry .queue-vote-cluster .queue-vote-count {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
     }
     
     .queue-entry .queue-vote-count {
