@@ -344,12 +344,12 @@ def request_music(request: WSGIRequest) -> HttpResponse:
             queue.filter(requester_token=requester_token).count()
             + CurrentSong.objects.filter(requester_token=requester_token).count()
         )
-        if active_count >= 10:
+        if active_count >= 5:
             try:
                 playback.queue.remove(queued_song.id)
             except QueuedSong.DoesNotExist:
                 pass
-            return HttpResponseBadRequest("You may have up to 10 active songs at once.")
+            return HttpResponseBadRequest("You may have up to 5 active songs at once.")
         assert isinstance(provider, SongProvider)
         queue_key = queued_song.id
         has_primary = (
