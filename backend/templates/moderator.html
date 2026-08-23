@@ -273,14 +273,7 @@
         align-items: center;
       }
       
-      .current-song-cover {
-        width: 96px;
-        height: 96px;
-        border-radius: 16px;
-        object-fit: contain;
-        background: rgba(255,255,255,.04);
-        box-shadow: 0 10px 28px rgba(0,0,0,.32);
-      }
+      .current-song-cover { width:96px; height:96px; border-radius:16px; object-fit:cover; background:rgba(255,255,255,.04); box-shadow:0 10px 28px rgba(0,0,0,.32); }
       
       .current-song-actions {
         display: grid;
@@ -841,7 +834,7 @@
             </section>
             <section class="panel section" id="moderator-accounts-section" hidden>
               <div class="section-head"><h2>Moderator accounts</h2><div class="token">Administrator only</div></div>
-              <div class="account-form"><input id="account-username" placeholder="Username"><input id="account-label" placeholder="Name/label"><input id="account-password" type="password" placeholder="Password"><label><input id="account-song-only" type="checkbox"> Song-only</label><label><input id="account-active" type="checkbox" checked> Active</label><button id="account-save" class="good" type="button">Add moderator</button></div>
+              <div class="account-form"><input id="account-username" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="Username"><input id="account-label" type="text" inputmode="text" autocomplete="off" placeholder="Account label"><input id="account-password" type="password" autocomplete="new-password" placeholder="Password"><label><input id="account-song-only" type="checkbox"> Song-only</label><label><input id="account-active" type="checkbox" checked> Active</label><button id="account-save" class="good" type="button">Add moderator</button></div>
               <div id="moderator-accounts-list" class="stack"></div>
             </section>
           </div>
