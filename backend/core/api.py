@@ -48,7 +48,7 @@ def post_song(request: WSGIRequest) -> HttpResponse:
     queued_song = getattr(provider, "queued_song", None)
     if queued_song is None:
         return HttpResponseBadRequest(
-            "Playlist requests are disabled; add up to 10 individual songs instead."
+            "Playlist requests are disabled, add up to 5 individual songs instead."
         )
     # Background work is deliberately deferred until the ownership and
     # priority assignment commits.
@@ -58,12 +58,12 @@ def post_song(request: WSGIRequest) -> HttpResponse:
             musiq.queue.filter(requester_token=requester_token).count()
             + models.CurrentSong.objects.filter(requester_token=requester_token).count()
         )
-        if active_count >= 10:
+        if active_count >= 5:
             try:
                 playback.queue.remove(queued_song.id)
             except models.QueuedSong.DoesNotExist:
                 pass
-            return HttpResponseBadRequest("You may have up to 10 active songs at once.")
+            return HttpResponseBadRequest("You may add up to 5 songs in the queue.")
         queue_key = queued_song.id
         has_primary = (
             musiq.queue.filter(
