@@ -307,8 +307,16 @@ def remove_own_song(request: WSGIRequest) -> HttpResponse:
 
     key = int(key_param)
     request_ip = user_manager.get_client_ip(request)
-
-    if not user_manager.song_belongs_to_ip(request_ip, key):
+    identity = user_manager.client_identity(request, create=False)
+    
+    owned_by_browser = bool(
+        identity
+        and models.QueuedSong.objects.filter(
+            id=key,
+            requester_token=identity.token_hash,
+        ).exists()
+    )
+    if not owned_by_browser and not user_manager.song_belongs_to_ip(request_ip, key):
         return HttpResponseForbidden("That is not your song.")
 
     if not user_manager.can_self_remove_song(request_ip):
@@ -349,17 +357,28 @@ def own_song_state(request: WSGIRequest) -> HttpResponse:
     """
     request_ip = user_manager.get_client_ip(request)
     normalized_ip = user_manager.normalize_ip(request_ip)
+    identity = user_manager.client_identity(request, create=False)
+    requester_token = identity.token_hash if identity else ""
     songs = []
-
+    
     active_queue_key = user_manager.get_active_queue_slot(request_ip)
-
+    
     for position, song in enumerate(musiq.ordered_queue_queryset(), start=1):
         owns_song = False
-
+    
         if active_queue_key is not None and song.id == active_queue_key:
             owns_song = True
-
-        if not owns_song and normalized_ip and song.requester_ip == normalized_ip:
+    
+        if not owns_song and requester_token and song.requester_token == requester_token:
+            owns_song = True
+    
+        # Compatibility fallback for songs queued before browser identities.
+        if (
+            not owns_song
+            and not song.requester_token
+            and normalized_ip
+            and song.requester_ip == normalized_ip
+        ):
             owns_song = True
 
         if owns_song:
@@ -374,10 +393,19 @@ def own_song_state(request: WSGIRequest) -> HttpResponse:
     current_song = models.CurrentSong.objects.first()
     if (
         current_song
-        and normalized_ip
         and (
-            current_song.requester_ip == normalized_ip
-            or user_manager.song_belongs_to_ip(request_ip, current_song.queue_key)
+            (requester_token and current_song.requester_token == requester_token)
+            or (
+                not current_song.requester_token
+                and normalized_ip
+                and (
+                    current_song.requester_ip == normalized_ip
+                    or user_manager.song_belongs_to_ip(
+                        request_ip,
+                        current_song.queue_key,
+                    )
+                )
+            )
         )
     ):
         current_song_queue_key = current_song.queue_key
