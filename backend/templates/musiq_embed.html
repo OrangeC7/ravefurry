@@ -1420,6 +1420,56 @@
         top: 7px;
         right: 9px;
     }
+
+    /* Artwork participates in the row layout, so it can never be clipped by
+       the rounded queue card. Voting remains anchored at the right. */
+    #song-queue > li,
+    #song-queue > .list-group-item {
+        min-height: 92px !important;
+    }
+    
+    #song-queue .queue-entry.has-artwork {
+        padding-left: 0 !important;
+    }
+    
+    #song-queue .queue-artwork {
+        position: static !important;
+        order: 0 !important;
+        flex: 0 0 72px;
+        width: 72px;
+        height: 72px;
+        object-fit: contain;
+        background: rgba(255,255,255,0.04);
+    }
+    
+    #song-queue .queue-info-time {
+        order: 1 !important;
+    }
+    
+    #song-queue .queue-title {
+        order: 2 !important;
+    }
+    
+    #song-queue .queue-info {
+        order: 3 !important;
+    }
+    
+    #song-queue .furatic-owned-song .queue-artwork {
+        margin-left: 38px;
+    }
+    
+    #song-queue .furatic-owned-song .queue-entry.has-artwork {
+        padding-left: 0 !important;
+    }
+    
+    #current-song.present {
+        min-height: 150px;
+    }
+    
+    #current-song .current-song-artwork {
+        display: block;
+        align-self: flex-start;
+    }
     
     @media (max-width: 620px) {
         .furatic-embed-shell {
@@ -1449,6 +1499,12 @@
     <ul class="list-group" id="current-song-card">
         <li class="list-group-item empty" id="current-song">
             <div class="current-song-top-row">
+                <img
+                    id="current-song-artwork"
+                    class="current-song-artwork"
+                    alt="Current song artwork"
+                    hidden
+                >
                 {% if show_stream %}
                     <audio></audio>
                     <i class="fas fa-volume-mute" id="stream-control"></i>
