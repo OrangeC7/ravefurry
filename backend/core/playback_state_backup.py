@@ -36,6 +36,8 @@ QUEUE_FIELDS = (
     "duration",
     "requester_ip",
     "requester_session_key",
+    "requester_token", "priority_tier", "review_status", "review_reason",
+    "lyrics", "profanity_count", "slur_count", "artwork_url", "genre",
 )
 
 CURRENT_FIELDS = (
@@ -50,6 +52,7 @@ CURRENT_FIELDS = (
     "duration",
     "requester_ip",
     "requester_session_key",
+    "requester_token", "artwork_url", "genre",
 )
 
 
@@ -156,6 +159,15 @@ def _create_queued_song(item: Dict[str, Any]) -> None:
         duration=float(item.get("duration") or -1),
         requester_ip=str(item.get("requester_ip") or ""),
         requester_session_key=str(item.get("requester_session_key") or ""),
+        requester_token=str(item.get("requester_token") or ""),
+        priority_tier=str(item.get("priority_tier") or "normal"),
+        review_status=str(item.get("review_status") or "clear"),
+        review_reason=str(item.get("review_reason") or ""),
+        lyrics=str(item.get("lyrics") or ""),
+        profanity_count=int(item.get("profanity_count") or 0),
+        slur_count=int(item.get("slur_count") or 0),
+        artwork_url=str(item.get("artwork_url") or ""),
+        genre=str(item.get("genre") or ""),
     )
 
 
@@ -172,6 +184,9 @@ def _create_current_song(item: Dict[str, Any]) -> None:
         duration=float(item.get("duration") or -1),
         requester_ip=str(item.get("requester_ip") or ""),
         requester_session_key=str(item.get("requester_session_key") or ""),
+        requester_token=str(item.get("requester_token") or ""),
+        artwork_url=str(item.get("artwork_url") or ""),
+        genre=str(item.get("genre") or ""),
     )
 
     # CurrentSong uses auto_now_add, so update timestamps after creation.

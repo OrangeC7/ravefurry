@@ -5,6 +5,12 @@ from typing import Any, Dict, List
 
 from django.core.handlers.wsgi import WSGIRequest
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
@@ -24,9 +30,9 @@ def _queue_queryset():
     return musiq.ordered_queue_queryset()
 
 
-def _serialize_song(song) -> Dict[str, Any]:
+def _serialize_song(song, include_details: bool = False) -> Dict[str, Any]:
     queue_key = getattr(song, "queue_key", None) or getattr(song, "id")
-    return {
+    payload = {
         "queueKey": queue_key,
         "title": song.title,
         "artist": song.artist,
@@ -36,7 +42,22 @@ def _serialize_song(song) -> Dict[str, Any]:
         "durationFormatted": song_utils.format_seconds(song.duration),
         "manuallyRequested": getattr(song, "manually_requested", False),
         "requesterIp": user_manager.get_song_requester_ip(queue_key),
+        "externalUrl": song.external_url,
+        "reviewStatus": getattr(song, "review_status", "clear"),
+        "reviewReason": getattr(song, "review_reason", ""),
+        "profanityCount": getattr(song, "profanity_count", 0),
+        "slurCount": getattr(song, "slur_count", 0),
+        "artworkUrl": getattr(song, "artwork_url", ""),
+        "genre": getattr(song, "genre", ""),
+        "priorityTier": getattr(song, "priority_tier", "normal"),
     }
+    if include_details:
+        from core.song_analysis import matched_terms
+
+        lyrics = getattr(song, "lyrics", "")
+        payload["lyrics"] = lyrics
+        payload["matchedTerms"] = matched_terms(lyrics)
+    return payload
 
 def _request_settings_payload() -> Dict[str, Any]:
     return {
@@ -44,7 +65,7 @@ def _request_settings_payload() -> Dict[str, Any]:
         "maxSongDurationSeconds": float(storage.get("max_song_duration_seconds")),
     }
 
-def _state_payload() -> Dict[str, Any]:
+def _state_payload(request=None) -> Dict[str, Any]:
     try:
         current_song = models.CurrentSong.objects.get()
         current_payload = _serialize_song(current_song)
@@ -52,17 +73,25 @@ def _state_payload() -> Dict[str, Any]:
         current_payload = None
 
     queue_payload = [_serialize_song(song) for song in _queue_queryset()]
-    return {
+    payload = {
         "mode": site_mode.get_mode(),
         "currentSong": current_payload,
         "queue": queue_payload,
         "bannedIps": user_manager.get_banned_ips(),
         "whitelistedIps": user_manager.get_whitelisted_ips(),
-        "auditLog": audit_log.get_recent(120),
+        "auditLog": audit_log.get_recent(1000),
         "blocklists": ip_screening.list_blocklists(),
         "ipIntel": ip_screening.get_runtime_state(),
         "requestSettings": _request_settings_payload(),
+        "isAdmin": bool(request and user_manager.is_admin(request.user)),
+        "songOnly": bool(request and user_manager.is_song_only_moderator(request.user)),
+        "moderatorAccounts": _moderator_accounts() if request and user_manager.is_admin(request.user) else [],
     }
+    if request and user_manager.is_song_only_moderator(request.user):
+        payload.update(bannedIps=[], whitelistedIps=[], auditLog=[], blocklists=[], ipIntel={}, requestSettings={})
+        for song in ([payload.get("currentSong")] if payload.get("currentSong") else []) + payload["queue"]:
+            song["requesterIp"] = ""
+    return payload
 
 
 @user_manager.moderator_required
@@ -84,6 +113,12 @@ def dashboard(request: WSGIRequest) -> HttpResponse:
             "moderator_add_blocklist_url": reverse("moderator-add-blocklist"),
             "moderator_rename_blocklist_url": reverse("moderator-rename-blocklist"),
             "moderator_remove_blocklist_url": reverse("moderator-remove-blocklist"),
+            "moderator_account_save_url": reverse("moderator-account-save"),
+            "moderator_account_delete_url": reverse("moderator-account-delete"),
+            "moderator_identity_search_url": reverse("moderator-identity-search"),
+            "moderator_audit_search_url": reverse("moderator-audit-search"),
+            "moderator_review_song_url": reverse("moderator-review-song"),
+            "moderator_song_details_url": reverse("moderator-song-details"),
         }
     )
     return render(request, "moderator.html", context)
@@ -93,7 +128,127 @@ def dashboard(request: WSGIRequest) -> HttpResponse:
 @user_manager.moderator_required
 def state(_request: WSGIRequest) -> HttpResponse:
     """Return moderator state for polling / refreshes."""
-    return JsonResponse(_state_payload())
+    return JsonResponse(_state_payload(_request))
+
+
+def _moderator_accounts():
+    users = get_user_model().objects.filter(Q(groups__name=user_manager.MODERATOR_GROUP_NAME) | Q(is_superuser=True)).distinct()
+    result = []
+    for user in users:
+        profile = getattr(user, "moderatorprofile", None)
+        result.append({"id": user.id, "username": user.get_username(), "label": profile.label if profile else user.get_username(), "songOnly": bool(profile and profile.song_only), "active": user.is_active, "admin": user.is_superuser})
+    return result
+
+
+@require_POST
+@user_manager.admin_required
+@transaction.atomic
+def save_moderator_account(request):
+    User = get_user_model()
+    account_id = request.POST.get("id", "")
+    username = request.POST.get("username", "").strip()
+    label = request.POST.get("label", "").strip()
+    password = request.POST.get("password", "")
+    if not username or not label:
+        return HttpResponseBadRequest("Username and label are required.")
+    if password:
+        try:
+            validate_password(password)
+        except ValidationError as error:
+            return HttpResponseBadRequest(" ".join(error.messages))
+    user = User.objects.filter(id=account_id).first() if account_id else None
+    if user and user.is_superuser:
+        return HttpResponseBadRequest("The administrator account cannot be edited here.")
+    if user is None:
+        if User.objects.filter(username__iexact=username).exists():
+            return HttpResponseBadRequest("That username already exists.")
+        if not password:
+            return HttpResponseBadRequest("A password is required for a new account.")
+        user = User.objects.create_user(username=username, password=password)
+    elif User.objects.filter(username__iexact=username).exclude(id=user.id).exists():
+        return HttpResponseBadRequest("That username already exists.")
+    user.username = username
+    user.is_active = request.POST.get("active", "true").lower() == "true"
+    if password and account_id:
+        user.set_password(password)
+    user.save()
+    group, _ = Group.objects.get_or_create(name=user_manager.MODERATOR_GROUP_NAME)
+    user.groups.add(group)
+    profile, _ = models.ModeratorProfile.objects.get_or_create(user=user, defaults={"label": label})
+    profile.label = label
+    profile.song_only = request.POST.get("song_only", "false").lower() == "true"
+    profile.save()
+    audit_log.append("admin_save_moderator", request=request, target=username, metadata={"active": user.is_active, "songOnly": profile.song_only})
+    return JsonResponse({"accounts": _moderator_accounts()})
+
+
+@require_POST
+@user_manager.admin_required
+@transaction.atomic
+def delete_moderator_account(request):
+    user = get_user_model().objects.filter(
+        id=request.POST.get("id", ""),
+        is_superuser=False,
+        groups__name=user_manager.MODERATOR_GROUP_NAME,
+    ).first()
+    if not user:
+        return HttpResponseBadRequest("Moderator account not found.")
+    username = user.get_username()
+    user.delete()
+    audit_log.append("admin_delete_moderator", request=request, target=username)
+    return JsonResponse({"accounts": _moderator_accounts()})
+
+
+@require_GET
+@user_manager.full_moderator_required
+def identity_search(request):
+    query = request.GET.get("q", "").strip()
+    identities = models.ClientIdentity.objects.filter(codename__icontains=query).order_by("codename")[:20] if query else models.ClientIdentity.objects.order_by("-last_seen")[:20]
+    return JsonResponse({"results": [{"codename": i.codename, "ip": i.last_ip} for i in identities]})
+
+
+@require_GET
+@user_manager.full_moderator_required
+def audit_search(request):
+    query = request.GET.get("q", "").strip()
+    rows = models.AuditEntry.objects.filter(Q(codename__icontains=query) | Q(ip__icontains=query) | Q(song_title__icontains=query))[:1000]
+    return JsonResponse({"results": [{"ts": r.created.timestamp(), "action": r.action, "actor": r.actor, "actorRole": r.actor_role, "ip": r.ip, "codename": r.codename, "browserToken": r.browser_token, "target": r.target, "songKey": r.song_key, "songTitle": r.song_title, "metadata": r.metadata} for r in rows]})
+
+
+@require_GET
+@user_manager.moderator_required
+def song_details(request):
+    key = request.GET.get("key", "")
+    if not str(key).isdigit():
+        return HttpResponseBadRequest("Invalid queue key.")
+    song = models.QueuedSong.objects.filter(id=int(key)).first()
+    if not song:
+        return HttpResponseBadRequest("Song does not exist.")
+    return JsonResponse({"song": _serialize_song(song, include_details=True)})
+
+
+@require_POST
+@user_manager.moderator_required
+def review_song(request):
+    key = request.POST.get("key", "")
+    if not str(key).isdigit():
+        return HttpResponseBadRequest("Invalid queue key.")
+    song = models.QueuedSong.objects.filter(id=int(key)).first()
+    decision = request.POST.get("decision", "")
+    if not song or decision not in {"hold", "approve", "deny"}:
+        return HttpResponseBadRequest("Invalid song review request.")
+    title = song.displayname()
+    queue_key = song.id
+    if decision == "deny":
+        playback.queue.remove(song.id)
+    else:
+        song.review_status = "pending" if decision == "hold" else "approved"
+        song.review_reason = "Held manually by moderator" if decision == "hold" else ""
+        song.save(update_fields=["review_status", "review_reason"])
+    audit_log.append(f"moderator_{decision}_song", request=request, target="queue", song_key=queue_key, song_title=title)
+    playback.queue_changed.set()
+    musiq.update_state()
+    return JsonResponse(_state_payload(request))
 
 
 @require_POST
@@ -119,7 +274,7 @@ def remove_song(request: WSGIRequest) -> HttpResponse:
     except models.QueuedSong.DoesNotExist:
         return HttpResponseBadRequest("Song does not exist")
     musiq.update_state()
-    return JsonResponse(_state_payload())
+    return JsonResponse(_state_payload(request))
 
 @require_POST
 @user_manager.moderator_required
@@ -128,10 +283,10 @@ def skip_current_song(_request: WSGIRequest) -> HttpResponse:
     musiq_controller._skip(reason="moderator")
     audit_log.append("moderator_skip_current", request=_request, target="current-song")
     musiq.update_state()
-    return JsonResponse(_state_payload())
+    return JsonResponse(_state_payload(_request))
 
 @require_POST
-@user_manager.moderator_required
+@user_manager.full_moderator_required
 def ban_ip(request: WSGIRequest) -> HttpResponse:
     """Ban a requester IP directly or via a queue key."""
     ip = request.POST.get("ip", "")
@@ -161,7 +316,7 @@ def ban_ip(request: WSGIRequest) -> HttpResponse:
 
 
 @require_POST
-@user_manager.moderator_required
+@user_manager.full_moderator_required
 def unban_ip(request: WSGIRequest) -> HttpResponse:
     """Unban a requester IP."""
     ip = request.POST.get("ip", "")
@@ -177,13 +332,16 @@ def unban_ip(request: WSGIRequest) -> HttpResponse:
     return JsonResponse({"ip": normalized, "bannedIps": user_manager.get_banned_ips()})
 
 @require_POST
-@user_manager.moderator_required
+@user_manager.full_moderator_required
 def whitelist_ip(request: WSGIRequest) -> HttpResponse:
     """Whitelist a trusted requester IP."""
     ip = request.POST.get("ip", "")
     if not ip:
         return HttpResponseBadRequest("Missing IP address")
 
+    identity = models.ClientIdentity.objects.filter(codename__iexact=ip).first()
+    if identity:
+        ip = identity.last_ip
     try:
         normalized = user_manager.whitelist_ip(ip)
         audit_log.append("moderator_whitelist_ip", request=request, target=normalized)
@@ -194,7 +352,7 @@ def whitelist_ip(request: WSGIRequest) -> HttpResponse:
 
 
 @require_POST
-@user_manager.moderator_required
+@user_manager.full_moderator_required
 def unwhitelist_ip(request: WSGIRequest) -> HttpResponse:
     """Remove a trusted requester IP from the whitelist."""
     ip = request.POST.get("ip", "")
@@ -210,7 +368,7 @@ def unwhitelist_ip(request: WSGIRequest) -> HttpResponse:
     return JsonResponse({"ip": normalized, "whitelistedIps": user_manager.get_whitelisted_ips()})
 
 @require_POST
-@user_manager.moderator_required
+@user_manager.full_moderator_required
 def add_blocklist(request: WSGIRequest) -> HttpResponse:
     """Upload or register a new IPv4 blocklist file."""
     try:
@@ -234,11 +392,11 @@ def add_blocklist(request: WSGIRequest) -> HttpResponse:
             "sourceKind": blocklist["sourceKind"],
         },
     )
-    return JsonResponse(_state_payload())
+    return JsonResponse(_state_payload(request))
 
 
 @require_POST
-@user_manager.moderator_required
+@user_manager.full_moderator_required
 def rename_blocklist(request: WSGIRequest) -> HttpResponse:
     """Rename a configured blocklist entry."""
     source_id = request.POST.get("id", "")
@@ -255,11 +413,11 @@ def rename_blocklist(request: WSGIRequest) -> HttpResponse:
         target=updated["name"],
         metadata={"id": updated["id"]},
     )
-    return JsonResponse(_state_payload())
+    return JsonResponse(_state_payload(request))
 
 
 @require_POST
-@user_manager.moderator_required
+@user_manager.full_moderator_required
 def remove_blocklist(request: WSGIRequest) -> HttpResponse:
     """Remove a configured blocklist entry."""
     source_id = request.POST.get("id", "")
@@ -277,10 +435,10 @@ def remove_blocklist(request: WSGIRequest) -> HttpResponse:
         target=removed_name,
         metadata={"id": source_id},
     )
-    return JsonResponse(_state_payload())
+    return JsonResponse(_state_payload(request))
 
 @require_POST
-@user_manager.moderator_required
+@user_manager.full_moderator_required
 def set_site_mode(request: WSGIRequest) -> HttpResponse:
     """Switch between event, closing, and after-hours mode."""
     mode = request.POST.get("mode", "")
@@ -298,7 +456,7 @@ def set_site_mode(request: WSGIRequest) -> HttpResponse:
     return JsonResponse({"mode": selected_mode})
 
 @require_POST
-@user_manager.moderator_required
+@user_manager.full_moderator_required
 def set_request_settings(request: WSGIRequest) -> HttpResponse:
     """Update runtime song request controls."""
 
@@ -334,4 +492,4 @@ def set_request_settings(request: WSGIRequest) -> HttpResponse:
         },
     )
 
-    return JsonResponse(_state_payload())
+    return JsonResponse(_state_payload(request))

@@ -6,7 +6,9 @@ import datetime
 import logging
 import os
 import random
+import shutil
 import time
+from pathlib import Path
 from typing import Optional, Tuple
 
 from django.conf import settings as conf
@@ -28,7 +30,7 @@ buzzer_stopped = redis.Event("buzzer_stopped")
 queue = models.QueuedSong.objects
 
 def _ordered_confirmed_queue():
-    confirmed = queue.confirmed()
+    confirmed = queue.confirmed().filter(review_status__in=["clear", "approved"]).annotate(queue_rank=Case(When(priority_tier="extra", then=Value(1)), default=Value(0), output_field=IntegerField()))
     voting_enabled = storage.get("interactivity") in [
         storage.Interactivity.upvotes_only,
         storage.Interactivity.full_voting,
@@ -41,9 +43,9 @@ def _ordered_confirmed_queue():
                 default=Value(1),
                 output_field=IntegerField(),
             )
-        ).order_by("-effective_votes", "index")
+        ).order_by("queue_rank", "-effective_votes", "index")
     else:
-        natural_order = confirmed.order_by("index")
+        natural_order = confirmed.order_by("queue_rank", "index")
 
     locked_key = next_up.resolve_locked_queue_key(
         natural_order.values_list("id", flat=True),
@@ -65,9 +67,9 @@ def _ordered_confirmed_queue():
                     default=Value(1),
                     output_field=IntegerField(),
                 )
-            ).order_by("next_up_locked", "-effective_votes", "index")
+            ).order_by("next_up_locked", "queue_rank", "-effective_votes", "index")
         else:
-            ordered = ordered.order_by("-effective_votes", "index")
+            ordered = ordered.order_by("queue_rank", "-effective_votes", "index")
         return ordered
 
     if locked_key is not None:
@@ -77,9 +79,9 @@ def _ordered_confirmed_queue():
                 default=Value(1),
                 output_field=IntegerField(),
             )
-        ).order_by("next_up_locked", "index")
+        ).order_by("next_up_locked", "queue_rank", "index")
 
-    return confirmed.order_by("index")
+    return confirmed.order_by("queue_rank", "index")
 
 def request_operator_command(command: str) -> None:
     """Send an operator command from the launcher process to the playback loop."""
@@ -301,7 +303,16 @@ class Playback:
             duration=song.duration,
             requester_ip=song.requester_ip,
             requester_session_key=song.requester_session_key,
+            requester_token=song.requester_token,
+            artwork_url=song.artwork_url,
+            genre=song.genre,
         )
+        cover_source = Path(conf.FURATIC_OBS_OUTPUT_DIR).expanduser() / "artwork" / f"queue-{song_id}.jpg"
+        if cover_source.is_file():
+            try:
+                shutil.copyfile(cover_source, Path(conf.FURATIC_OBS_OUTPUT_DIR).expanduser() / "songcover.jpg")
+            except OSError:
+                logging.exception("failed to export OBS song cover")
 
         playback_state_backup.snapshot()
         handle_autoplay()
@@ -488,6 +499,10 @@ class Playback:
     def _song_finished(self, current_song: models.CurrentSong) -> None:
         """Handles things that might need to happen after a song ended,
         e.g.repeat, alarm and backup stream."""
+        models.RecentPlay.objects.create(song_url=current_song.external_url)
+        models.RecentPlay.objects.filter(
+            created__lt=timezone.now() - datetime.timedelta(hours=24),
+        ).delete()
         if storage.get("repeat"):
             queue.enqueue(
                 {
@@ -581,6 +596,8 @@ class Playback:
             redis.put("playing", False)
 
             current_song.delete()
+
+            queue.promote_oldest_extra(current_song.requester_token)
 
             self._song_finished(current_song)
             playback_state_backup.snapshot()

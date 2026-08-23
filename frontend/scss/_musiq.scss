@@ -264,11 +264,37 @@ $entry-height: 50px;
 #song-queue>li {
 	padding: 5px;
 }
+
+.queue-review-warning {
+  position: absolute; right: .65rem; top: .45rem; width: 1.45rem; height: 1.45rem;
+  border-radius: 50%; background: #d7193f; color: white; font-weight: 900;
+  text-align: center; line-height: 1.45rem; box-shadow: 0 0 12px rgba(215,25,63,.65);
+}
+.queue-artwork {
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 7px 20px rgba(0,0,0,.32);
+}
+.queue-review-pending { order: 9999; }
 .queue-entry {
+	position: relative;
 	display: flex;
 	flex-wrap: wrap;
 	flex-direction: column;
 	height: $entry-height;
+}
+.queue-entry.has-artwork {
+	height: 82px;
+	padding-left: 82px;
+}
+.queue-entry.has-artwork.queue-voting-layout.queue-entry-ready .queue-title,
+.queue-entry.has-artwork.queue-voting-layout.queue-entry-ready .queue-info {
+	width: 100%;
 }
 .download-icon {
 	position: relative;

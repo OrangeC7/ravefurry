@@ -212,6 +212,9 @@ run_install() {
   # install from our repo
   pip install --force-reinstall \
     "raveberry[install] @ git+${DEFAULT_RAVEBERRY_REPO}@${DEFAULT_RAVEBERRY_REF}"
+  # yt-dlp changes frequently; always finish installs/updates on its newest
+  # stable release in the same virtual environment Raveberry actually uses.
+  python -m pip install --upgrade yt-dlp
 
   raveberry --help >/dev/null
 

@@ -61,6 +61,15 @@ def write_current_song_tick(
             _stringify(getattr(current_song, "votes", 0) or 0),
         ]
         _write_lines(output_dir / "songcurrent.txt", current_lines)
+        if current_song:
+            _write_lines(
+                output_dir / "songgenre.txt",
+                [getattr(current_song, "genre", "") or ""],
+            )
+            _write_lines(
+                output_dir / "songartwork.txt",
+                [getattr(current_song, "artwork_url", "") or ""],
+            )
     except Exception:  # pylint: disable=broad-except
         LOGGER.exception("failed to write OBS current song tick")
 
@@ -91,6 +100,14 @@ def write_from_state(state: Dict[str, Any]) -> None:
         else:
             current_lines = ["", "", "", "", ""]
         _write_lines(output_dir / "songcurrent.txt", current_lines)
+        _write_lines(
+            output_dir / "songgenre.txt",
+            [(current_song or {}).get("genre") or ""],
+        )
+        _write_lines(
+            output_dir / "songartwork.txt",
+            [(current_song or {}).get("artworkUrl") or ""],
+        )
 
         for index, song in enumerate(queue, start=1):
             queue_lines = [

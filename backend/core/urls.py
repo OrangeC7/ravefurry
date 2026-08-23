@@ -26,6 +26,7 @@ from core.settings import system
 from core.settings import wifi
 from core import state_handler
 from core import ui_notifications
+from core.authentication import ModeratorAuthenticationForm
 
 urlpatterns: List[Union[URLPattern, URLResolver]] = [
     path("", base.landing, name="base"),
@@ -41,6 +42,7 @@ urlpatterns: List[Union[URLPattern, URLResolver]] = [
         "moderator-login/",
         LoginView.as_view(
             template_name="furatic_login.html",
+            authentication_form=ModeratorAuthenticationForm,
             redirect_authenticated_user=True,
             next_page="moderator",
         ),
@@ -113,6 +115,12 @@ urlpatterns: List[Union[URLPattern, URLResolver]] = [
                                 moderation.remove_blocklist,
                                 name="moderator-remove-blocklist",
                             ),
+                            path("accounts/save/", moderation.save_moderator_account, name="moderator-account-save"),
+                            path("accounts/delete/", moderation.delete_moderator_account, name="moderator-account-delete"),
+                            path("identity-search/", moderation.identity_search, name="moderator-identity-search"),
+                            path("audit-search/", moderation.audit_search, name="moderator-audit-search"),
+                            path("review-song/", moderation.review_song, name="moderator-review-song"),
+                            path("song-details/", moderation.song_details, name="moderator-song-details"),
                         ]
                     ),
                 ),

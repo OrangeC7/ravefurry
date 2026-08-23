@@ -51,18 +51,21 @@ def _can_bypass_ban(path, request) -> bool:
     return False
 
 
-def _ban_response(reason: str = "") -> HttpResponse:
+def _ban_response(reason: str = "", codename: str = "Unknown") -> HttpResponse:
     if reason in {"api", "blocklist"}:
         message = (
-            'Connections from VPNs, proxies, relays, or datacenter IPs are not allowed here. '
-            'Please disconnect from your VPN or proxy and try again. '
-            'If you believe this is in error, please contact us on Discord: '
-            '<a href="https://discord.gg/Sr4pAFa8E5" target="_blank" rel="noopener noreferrer">Join our Discord</a>'
+            'Your connection to FURATIC has been blocked due to potential VPN usage. '
+            'Please disable your VPN or use a device that doesn\'t have a VPN enabled. '
+            'If you believe this is a mistake or live in a region that requires you to use a VPN, '
+            'please reach out to an in-game staff member. They can temporarily whitelist you for '
+            f'the duration of this event. Codename: <strong>{codename}</strong>'
         )
     else:
         message = (
-            'This IP address is banned. If you believe this is in error, please contact us on Discord: '
-            '<a href="https://discord.gg/Sr4pAFa8E5" target="_blank" rel="noopener noreferrer">Join our Discord</a>'
+            'You have been banned by the FURATIC moderation team. '
+            '<a href="APPEAL_URL_PLACEHOLDER">Visit this link to appeal</a> and '
+            '<a href="GUIDELINES_URL_PLACEHOLDER">review our guidelines</a>. '
+            f'Codename: <strong>{codename}</strong>'
         )
 
     return HttpResponse(message, status=403)
@@ -108,6 +111,7 @@ class ClientIpBanMiddleware:
 
     def __call__(self, request):
         request.client_ip = user_manager.get_client_ip(request)
+        identity = user_manager.client_identity(request)
         path = request.path
         screening = None
 
@@ -146,7 +150,7 @@ class ClientIpBanMiddleware:
             if _can_bypass_ban(path, request):
                 response = self.get_response(request)
             else:
-                response = _ban_response(screening.get("reason", ""))
+                response = _ban_response(screening.get("reason", ""), identity.codename if identity else "Unknown")
         else:
             response = self.get_response(request)
 
@@ -157,6 +161,8 @@ class ClientIpBanMiddleware:
             response.status_code,
             request.client_ip or request.META.get("REMOTE_ADDR", ""),
         )
+        if getattr(request, "furatic_set_browser_cookie", False):
+            response.set_cookie(user_manager.CLIENT_TOKEN_COOKIE, request.furatic_browser_token, max_age=60 * 60 * 24 * 365 * 2, secure=request.is_secure(), httponly=True, samesite="Lax")
         return response
 
 

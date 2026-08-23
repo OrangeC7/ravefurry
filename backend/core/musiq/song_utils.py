@@ -23,6 +23,8 @@ class Metadata(TypedDict, total=False):
     external_url: Optional[str]
     stream_url: Optional[str]
     cached: bool
+    artwork_url: str
+    genre: str
 
 
 def get_path(basename: str) -> str:

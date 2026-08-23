@@ -346,8 +346,16 @@ function createQueueItem() {
       .addClass('queue-info-time')
       .appendTo(entryDiv);
 
-  $('<div/>')
+  $('<img/>')
+      .addClass('queue-artwork')
+      .attr('alt', '')
+      .hide()
+      .appendTo(entryDiv);
+
+  $('<a/>')
       .addClass('queue-title')
+      .attr('target', '_blank')
+      .attr('rel', 'noopener noreferrer')
       .appendTo(entryDiv);
 
   const info = $('<div/>')
@@ -444,6 +452,20 @@ function updateInformation(entry, song) {
 
   const title = entry.find('.queue-title');
   insertDisplayName(title, song);
+  title.attr('href', song.externalUrl || '#').attr('title', 'Open song in a new tab');
+  row.toggleClass('has-artwork', Boolean(song.artworkUrl));
+  if (song.artworkUrl) {
+    entry.find('.queue-artwork').attr('src', song.artworkUrl).show();
+  } else {
+    entry.find('.queue-artwork').removeAttr('src').hide();
+  }
+  entry.toggleClass('queue-review-pending', song.reviewStatus === 'pending');
+  if (song.reviewStatus === 'pending') {
+    title.attr('title', "This song won't play until it has been checked by a moderator due to lyrics possibly breaking the FURATIC event rules.");
+    if (!entry.find('.queue-review-warning').length) $('<span/>').addClass('queue-review-warning').text('!').appendTo(row);
+  } else {
+    entry.find('.queue-review-warning').remove();
+  }
 
   const time = entry.find('.queue-info-time');
   time.text(song.durationFormatted);
