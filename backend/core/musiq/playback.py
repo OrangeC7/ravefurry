@@ -23,6 +23,7 @@ from core.settings import storage
 from core.tasks import app
 from core.musiq import song_utils
 from core.models import CurrentSong
+from core.safe_files import retry_file_operation, safe_unlink
 
 queue_changed = redis.Event("queue_changed")
 buzzer_stopped = redis.Event("buzzer_stopped")
@@ -307,12 +308,34 @@ class Playback:
             artwork_url=song.artwork_url,
             genre=song.genre,
         )
-        cover_source = Path(conf.FURATIC_OBS_OUTPUT_DIR).expanduser() / "artwork" / f"queue-{song_id}.jpg"
+        cover_source = (
+            Path(conf.FURATIC_OBS_OUTPUT_DIR).expanduser()
+            / "artwork"
+            / f"queue-{song_id}.jpg"
+        )
+        cover_target = (
+            Path(conf.FURATIC_OBS_OUTPUT_DIR).expanduser()
+            / "songcover.jpg"
+        )
+        
         if cover_source.is_file():
             try:
-                shutil.copyfile(cover_source, Path(conf.FURATIC_OBS_OUTPUT_DIR).expanduser() / "songcover.jpg")
+                cover_temporary = cover_target.with_suffix(".tmp")
+                shutil.copyfile(cover_source, cover_temporary)
+        
+                retry_file_operation(
+                    lambda: os.replace(cover_temporary, cover_target),
+                    description="replace OBS song cover",
+                    logger=logging.getLogger(__name__),
+                )
             except OSError:
                 logging.exception("failed to export OBS song cover")
+        else:
+            safe_unlink(
+                cover_target,
+                missing_ok=True,
+                logger=logging.getLogger(__name__),
+            )
 
         playback_state_backup.snapshot()
         handle_autoplay()
