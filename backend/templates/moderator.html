@@ -256,10 +256,38 @@
       }
 
       .queue-item {
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(260px, 0.9fr) minmax(420px, 1.35fr);
         align-items: center;
       }
+      
+      .queue-item .queue-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(132px, 1fr));
+        width: 100%;
+      }
 
+      .current-song-layout {
+        display: grid;
+        grid-template-columns: 96px minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: center;
+      }
+      
+      .current-song-cover {
+        width: 96px;
+        height: 96px;
+        border-radius: 16px;
+        object-fit: contain;
+        background: rgba(255,255,255,.04);
+        box-shadow: 0 10px 28px rgba(0,0,0,.32);
+      }
+      
+      .current-song-actions {
+        display: grid;
+        gap: 10px;
+        min-width: 170px;
+      }
+      
       .queue-artist {
         color: var(--muted);
       }
@@ -738,6 +766,23 @@
         }
         .field-grid {
           grid-template-columns: 1fr;
+        }
+      }
+      #enable-alerts-button.needs-attention {
+        animation: alertAttention 1.4s ease-in-out 4;
+      }
+      
+      @keyframes alertAttention {
+        0%, 100% {
+          box-shadow: 0 0 0 0 rgba(0,142,248,0);
+          transform: translateY(0);
+        }
+      
+        45% {
+          box-shadow:
+            0 0 0 6px rgba(0,142,248,.16),
+            0 0 24px rgba(0,142,248,.22);
+          transform: translateY(-2px);
         }
       }
     </style>
@@ -1625,7 +1670,16 @@
           escapeHtml(song.slurCount || 0) + ' slur matches</p></div></div>',
           '<hr><div class="lyrics-copy">' + highlightedLyrics(song) + '</div>'
         ].join("");
-        document.getElementById("song-details-dialog").showModal();
+        const dialog = document.getElementById("song-details-dialog");
+        dialog.scrollTop = 0;
+        
+        if (!dialog.open) {
+          dialog.showModal();
+        }
+        
+        window.requestAnimationFrame(function () {
+          dialog.scrollTop = 0;
+        });
       }
 
       async function saveAccount(id) {
@@ -1727,29 +1781,61 @@
       
       function renderCurrentSong(song) {
         const container = document.getElementById("current-song-card");
+      
         if (!song) {
-          container.innerHTML = '<div class="song-title">Nothing is currently playing.</div>';
+          container.innerHTML =
+            '<div class="song-title">Nothing is currently playing.</div>';
           return;
         }
-
-        const requesterIp = song.requesterIp ? escapeHtml(song.requesterIp) : "Unknown";
+      
+        const requesterIp = song.requesterIp
+          ? escapeHtml(song.requesterIp)
+          : "Unknown";
+      
         const banDisabled = song.requesterIp ? "" : " disabled";
-
+      
+        const cover = song.artworkUrl
+          ? '<img class="current-song-cover" src="' +
+            escapeHtml(song.artworkUrl) +
+            '" alt="">'
+          : '<div class="current-song-cover" aria-hidden="true"></div>';
+      
         container.innerHTML = [
-          '<div class="song-title">' + escapeHtml(song.title || song.displayName || "Untitled") + '</div>',
-          '<div class="song-meta">',
-            '<div class="meta-row">',
-              '<span class="token">Artist: ' + escapeHtml(song.artist || "Unknown") + '</span>',
-              '<span class="token">Votes: ' + escapeHtml(song.votes) + '</span>',
-              '<span class="token">Length: ' + escapeHtml(song.durationFormatted || "—") + '</span>',
+          '<div class="current-song-layout">',
+            cover,
+            '<div class="song-meta">',
+              '<a class="song-title" href="' +
+                escapeHtml(song.externalUrl || "#") +
+                '" target="_blank" rel="noopener noreferrer">' +
+                escapeHtml(song.title || song.displayName || "Untitled") +
+              '</a>',
+              '<div class="meta-row">',
+                '<span class="token">Artist: ' +
+                  escapeHtml(song.artist || "Unknown") +
+                '</span>',
+                '<span class="token">Votes: ' +
+                  escapeHtml(song.votes) +
+                '</span>',
+                '<span class="token">Length: ' +
+                  escapeHtml(song.durationFormatted || "—") +
+                '</span>',
+              '</div>',
+              '<div class="meta-row">',
+                '<span class="token">Requester IP: ' +
+                  requesterIp +
+                '</span>',
+              '</div>',
             '</div>',
-            '<div class="meta-row">',
-              '<span class="token">Requester IP: ' + requesterIp + '</span>',
+            '<div class="current-song-actions">',
+              '<button class="warn" type="button" data-action="skip-current">' +
+                'Skip current song' +
+              '</button>',
+              '<button class="warn" type="button" data-action="ban-current" ' +
+                'data-ip="' + escapeHtml(song.requesterIp || "") + '"' +
+                banDisabled + '>' +
+                'Ban requester' +
+              '</button>',
             '</div>',
-          '</div>',
-          '<div class="queue-actions">',
-            '<button class="warn" type="button" data-action="skip-current">Skip current song</button>',
-            '<button class="warn" type="button" data-action="ban-current" data-ip="' + escapeHtml(song.requesterIp || "") + '"' + banDisabled + '>Ban requester</button>',
           '</div>'
         ].join("");
       }
@@ -1783,10 +1869,12 @@
                 '</div>',
               '</div>',
               '<div class="queue-actions">',
-                '<button class="warn" type="button" data-action="remove-song" data-key="' + escapeHtml(song.queueKey) + '">Remove</button>',
-                '<button class="button subtle" type="button" data-action="hold-song" data-key="' + escapeHtml(song.queueKey) + '">Put on hold</button>',
-                '<button class="button subtle" type="button" data-action="view-details" data-key="' + escapeHtml(song.queueKey) + '">Lyrics & details</button>',
-                '<button class="button subtle" type="button" data-action="ban-song-ip" data-key="' + escapeHtml(song.queueKey) + '" data-ip="' + escapeHtml(song.requesterIp || "") + '"' + banDisabled + '>Ban requester</button>',
+                '<button class="warn" type="button" data-action="remove-song" data-key="' +
+                  escapeHtml(song.queueKey) + '">Remove</button>',
+                '<button class="button subtle" type="button" data-action="view-details" data-key="' +
+                  escapeHtml(song.queueKey) + '">Lyrics & details</button>',
+                '<button class="button subtle" type="button" data-action="ban-song-ip" data-key="' +
+                  escapeHtml(song.queueKey) + '">Ban requester</button>',
               '</div>',
             '</article>'
           ].join("");
@@ -2062,11 +2150,19 @@
         });
       });
       document.getElementById("enable-alerts-button").addEventListener("click", function () {
-        alertAudioContext = alertAudioContext || new (window.AudioContext || window.webkitAudioContext)();
+        alertAudioContext =
+          alertAudioContext ||
+          new (window.AudioContext || window.webkitAudioContext)();
+      
         alertAudioContext.resume();
         this.textContent = "Moderation alerts enabled";
+        this.classList.remove("needs-attention");
         playReviewDing();
       });
+      
+      document
+        .getElementById("enable-alerts-button")
+        .classList.add("needs-attention");
       
       document.getElementById("closing-mode-button").addEventListener("click", function () {
         setMode("closing").catch(function (error) {
