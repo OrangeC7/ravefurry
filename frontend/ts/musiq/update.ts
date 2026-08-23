@@ -107,6 +107,10 @@ export function updateState(newState) {
     $('#current-song').removeClass('present own-song-current');
     $('#current-song').addClass('empty');
     $('#current-song').removeAttr('data-queue-key');
+    $('#current-song-artwork')
+        .removeAttr('src')
+        .attr('hidden', 'hidden')
+        .hide();
 
     $('#song-votes .vote-down').removeClass('pressed');
     $('#song-votes .vote-up').removeClass('pressed');
@@ -133,6 +137,18 @@ export function updateState(newState) {
 
     $('#current-song').removeClass('empty').addClass('present');
     $('#current-song').attr('data-queue-key', String(currentSong.queueKey));
+    
+    if (currentSong.artworkUrl) {
+      $('#current-song-artwork')
+          .attr('src', currentSong.artworkUrl)
+          .removeAttr('hidden')
+          .show();
+    } else {
+      $('#current-song-artwork')
+          .removeAttr('src')
+          .attr('hidden', 'hidden')
+          .hide();
+    }
 
     const previousVote = getStoredVote(currentSong.queueKey);
     if (previousVote == '+') {
@@ -461,8 +477,15 @@ function updateInformation(entry, song) {
   }
   entry.toggleClass('queue-review-pending', song.reviewStatus === 'pending');
   if (song.reviewStatus === 'pending') {
-    title.attr('title', "This song won't play until it has been checked by a moderator due to lyrics possibly breaking the FURATIC event rules.");
-    if (!entry.find('.queue-review-warning').length) $('<span/>').addClass('queue-review-warning').text('!').appendTo(row);
+    title.attr('title', "This song won't play until it has been checked by a moderator due to possibly breaking the event rules.");
+    if (!entry.find('.queue-review-warning').length) {
+      $('<span/>')
+          .addClass('queue-review-warning')
+          .attr('role', 'img')
+          .attr('aria-label', 'Moderator review required')
+          .text('!')
+          .appendTo(entry.find('.queue-info-controls'));
+    }
   } else {
     entry.find('.queue-review-warning').remove();
   }
