@@ -10,12 +10,11 @@ app: Any
 
 if strtobool(os.environ.get("DJANGO_NO_CELERY", "0")):
     # For debugging/basic mode, keep async behavior without spawning unlimited
-    # threads. Raveberry starts a few long-running worker tasks, so default to 5:
-    # playback loop + buzzer loop + lights loop + up to 2 queued background jobs.
+    # threads. Keep substantial headroom for concurrent metadata/download work.
     CELERY_ACTIVE = False
-    MOCK_CELERY_WORKERS = int(os.environ.get("RAVEFURRY_MOCK_CELERY_WORKERS", "5"))
+    MOCK_CELERY_WORKERS = int(os.environ.get("RAVEFURRY_MOCK_CELERY_WORKERS", "12"))
     _executor = ThreadPoolExecutor(
-        max_workers=max(5, MOCK_CELERY_WORKERS),
+        max_workers=max(12, MOCK_CELERY_WORKERS),
         thread_name_prefix="ravefurry-task",
     )
 

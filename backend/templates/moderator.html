@@ -167,7 +167,7 @@
       .layout {
         display: grid;
         grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.95fr);
-        gap: 16px;
+        gap: 77px;
         align-items: start;
       }
 
@@ -219,6 +219,13 @@
         border: 1px solid var(--line);
         background: rgba(255, 255, 255, 0.045);
       }
+      body.song-only .layout > .stack:nth-child(2),
+      body.song-only #event-mode-button,
+      body.song-only #closing-mode-button,
+      body.song-only #afterhours-mode-button,
+      body.song-only #audit-section { display: none !important; }
+      mark.lyric-profanity { background:#f5c542; color:#111; padding:0 2px; }
+      mark.lyric-slur { background:#d7193f; color:#fff; padding:0 2px; }
 
       .song-title,
       .queue-title {
@@ -249,10 +256,31 @@
       }
 
       .queue-item {
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(260px, 0.9fr) minmax(420px, 1.35fr);
         align-items: center;
       }
+      
+      .queue-item .queue-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(132px, 1fr));
+        width: 100%;
+      }
 
+      .current-song-layout {
+        display: grid;
+        grid-template-columns: 96px minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: center;
+      }
+      
+      .current-song-cover { width:96px; height:96px; border-radius:16px; object-fit:cover; background:rgba(255,255,255,.04); box-shadow:0 10px 28px rgba(0,0,0,.32); }
+      
+      .current-song-actions {
+        display: grid;
+        gap: 10px;
+        min-width: 170px;
+      }
+      
       .queue-artist {
         color: var(--muted);
       }
@@ -272,8 +300,20 @@
         grid-template-columns: minmax(0, 1fr) auto;
         gap: 10px;
       }
+      .account-form {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        align-items: center;
+      }
+      .account-form label { display:flex; align-items:center; gap:8px; }
+      .moderator-cover { width:72px; height:72px; border-radius:14px; object-fit:cover; box-shadow:0 8px 24px rgba(0,0,0,.3); }
+      .song-details-dialog { width:min(760px, calc(100% - 24px)); max-height:85vh; overflow:auto; border:1px solid var(--line); border-radius:24px; padding:24px; background:#091022; color:#fff; }
+      .song-details-dialog::backdrop { background:rgba(2,4,12,.82); backdrop-filter:blur(10px); }
 
-      input[type="text"] {
+      input[type="text"],
+      input[type="search"],
+      input[type="password"] {
         width: 100%;
         border: 1px solid var(--line);
         background: rgba(255, 255, 255, 0.06);
@@ -285,11 +325,15 @@
         transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
       }
 
-      input[type="text"]::placeholder {
+      input[type="text"]::placeholder,
+      input[type="search"]::placeholder,
+      input[type="password"]::placeholder {
         color: rgba(238, 244, 255, 0.56);
       }
 
-      input[type="text"]:focus {
+      input[type="text"]:focus,
+      input[type="search"]:focus,
+      input[type="password"]:focus {
         border-color: rgba(0, 142, 248, 0.42);
         background: rgba(255, 255, 255, 0.08);
         box-shadow: 0 0 0 4px rgba(0, 142, 248, 0.12);
@@ -701,7 +745,8 @@
           justify-content: flex-start;
         }
 
-        .manual-ban {
+        .manual-ban,
+        .account-form {
           grid-template-columns: 1fr;
         }
 
@@ -716,6 +761,23 @@
           grid-template-columns: 1fr;
         }
       }
+      #enable-alerts-button.needs-attention {
+        animation: alertAttention 1.4s ease-in-out 4;
+      }
+      
+      @keyframes alertAttention {
+        0%, 100% {
+          box-shadow: 0 0 0 0 rgba(0,142,248,0);
+          transform: translateY(0);
+        }
+      
+        45% {
+          box-shadow:
+            0 0 0 6px rgba(0,142,248,.16),
+            0 0 24px rgba(0,142,248,.22);
+          transform: translateY(-2px);
+        }
+      }
     </style>
   </head>
   <body>
@@ -728,6 +790,7 @@
               <button id="event-mode-button" class="active" type="button">Event mode</button>
               <button id="closing-mode-button" type="button">Closing mode</button>
               <button id="afterhours-mode-button" type="button">After-hours mode</button>
+              <button id="enable-alerts-button" type="button">Enable moderation alerts</button>
               <a class="button subtle" href="/accounts/logout/">Log out</a>
             </div>
           </div>
@@ -755,7 +818,7 @@
               </div>
             </section>
         
-            <section class="panel section">
+            <section class="panel section" id="audit-section">
               <div class="section-head">
                 <h2>Audit log</h2>
                 <div class="token"><span id="audit-count">0</span>&nbsp;recent</div>
@@ -763,6 +826,16 @@
               <div id="audit-list" class="stack">
                 <div class="empty-state">No recent actions yet.</div>
               </div>
+              <div class="manual-ban"><input id="history-search-input" type="search" list="codename-suggestions" placeholder="Search codename, IP, or song"><button id="history-search-button" type="button">Search</button></div>
+            </section>
+            <section class="panel section" id="review-section" hidden>
+              <div class="section-head"><h2>Needs manual review</h2><div class="token"><span id="review-count">0</span>&nbsp;held</div></div>
+              <div id="review-list" class="stack"></div>
+            </section>
+            <section class="panel section" id="moderator-accounts-section" hidden>
+              <div class="section-head"><h2>Moderator accounts</h2><div class="token">Administrator only</div></div>
+              <div class="account-form"><input id="account-username" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="Username"><input id="account-label" type="text" inputmode="text" autocomplete="off" placeholder="Account label"><input id="account-password" type="password" autocomplete="new-password" placeholder="Password"><label><input id="account-song-only" type="checkbox"> Song-only</label><label><input id="account-active" type="checkbox" checked> Active</label><button id="account-save" class="good" type="button">Add moderator</button></div>
+              <div id="moderator-accounts-list" class="stack"></div>
             </section>
           </div>
         
@@ -807,14 +880,15 @@
                 <div class="token"><span id="whitelist-count">0</span>&nbsp;trusted</div>
               </div>
 
-              <label class="sr-only" for="manual-whitelist-input">Whitelist IP address</label>
+              <label class="sr-only" for="manual-whitelist-input">Whitelist IP address or codename</label>
               <div class="manual-ban">
                 <input
                   id="manual-whitelist-input"
+                  list="codename-suggestions"
                   type="text"
                   inputmode="text"
                   spellcheck="false"
-                  placeholder="Whitelist an IP directly"
+                  placeholder="Search a codename or enter IP"
                 >
                 <button id="manual-whitelist-button" class="good" type="button">Whitelist IP</button>
               </div>
@@ -822,6 +896,7 @@
               <div id="whitelist-list" class="stack">
                 <div class="empty-state">No IPs are currently whitelisted.</div>
               </div>
+              <datalist id="codename-suggestions"></datalist>
             </section>
 
             <section class="panel section">
@@ -949,6 +1024,7 @@
     </main>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <dialog id="song-details-dialog" class="song-details-dialog"><div id="song-details-content"></div><button id="song-details-close" type="button">Close</button></dialog>
 
     <div
       id="connection-overlay"
@@ -988,6 +1064,12 @@
       const MODERATOR_ADD_BLOCKLIST_URL = "{{ moderator_add_blocklist_url }}";
       const MODERATOR_RENAME_BLOCKLIST_URL = "{{ moderator_rename_blocklist_url }}";
       const MODERATOR_REMOVE_BLOCKLIST_URL = "{{ moderator_remove_blocklist_url }}";
+      const MODERATOR_ACCOUNT_SAVE_URL = "{{ moderator_account_save_url }}";
+      const MODERATOR_ACCOUNT_DELETE_URL = "{{ moderator_account_delete_url }}";
+      const MODERATOR_IDENTITY_SEARCH_URL = "{{ moderator_identity_search_url }}";
+      const MODERATOR_AUDIT_SEARCH_URL = "{{ moderator_audit_search_url }}";
+      const MODERATOR_REVIEW_SONG_URL = "{{ moderator_review_song_url }}";
+      const MODERATOR_SONG_DETAILS_URL = "{{ moderator_song_details_url }}";
 
       function escapeHtml(value) {
         return String(value == null ? "" : value)
@@ -1299,6 +1381,8 @@
           const ipDisplay = rawIp ? escapeHtml(rawIp) : "—";
           const summary = formatAuditAction(entry);
           const identity = rawIp ? getIpIdentity(rawIp) : null;
+          const serverCodename = String(entry.codename || (identity ? identity.label : ""));
+          const browserToken = String(entry.browserToken || "");
           const isBanned = rawIp ? bannedSet.has(rawIp) : false;
           const identityClass = identity ? " ip-identity" : "";
           const identityStyle = identity ? ' style="' + getIpIdentityStyle(rawIp) + '"' : "";
@@ -1317,7 +1401,8 @@
           return [
             '<article class="audit-item' + identityClass + '"' + identityStyle + '>',
               '<div class="audit-topline">',
-                identity ? '<span class="token ip-token">' + escapeHtml(identity.label) + '</span>' : '',
+                serverCodename ? '<span class="token ip-token">' + escapeHtml(serverCodename) + '</span>' : '',
+                browserToken ? '<span class="token">Browser: ' + escapeHtml(browserToken) + '</span>' : '',
                 showActorBubble ? '<span class="token">' + actor + '</span>' : '',
                 '<span class="token">' + actorRole + '</span>',
                 target ? '<span class="token">Target: ' + target + '</span>' : '',
@@ -1555,6 +1640,59 @@
         }
       }
 
+      async function reviewSong(key, decision) {
+        const data = await postForm(MODERATOR_REVIEW_SONG_URL, {key: key, decision: decision});
+        renderState(data);
+      }
+
+      async function showSongDetails(key) {
+        const response = await fetch(
+          MODERATOR_SONG_DETAILS_URL + "?key=" + encodeURIComponent(key),
+          {credentials: "same-origin", cache: "no-store"}
+        );
+        const data = await parseModeratorJsonResponse(response);
+        const song = data.song || {};
+        const cover = song.artworkUrl
+          ? '<img class="moderator-cover" src="' + escapeHtml(song.artworkUrl) + '" alt="">'
+          : '';
+        document.getElementById("song-details-content").innerHTML = [
+          '<div class="queue-title-row">', cover,
+          '<div><h2>' + escapeHtml(song.displayName || "Song details") + '</h2>',
+          '<p>' + escapeHtml(song.genre || "Genre unavailable") + ' · ' +
+          escapeHtml(song.profanityCount || 0) + ' profanity matches · ' +
+          escapeHtml(song.slurCount || 0) + ' slur matches</p></div></div>',
+          '<hr><div class="lyrics-copy">' + highlightedLyrics(song) + '</div>'
+        ].join("");
+        const dialog = document.getElementById("song-details-dialog");
+        dialog.scrollTop = 0;
+        
+        if (!dialog.open) {
+          dialog.showModal();
+        }
+        
+        window.requestAnimationFrame(function () {
+          dialog.scrollTop = 0;
+        });
+      }
+
+      async function saveAccount(id) {
+        const data = await postForm(MODERATOR_ACCOUNT_SAVE_URL, {
+          id: id || "", username: document.getElementById("account-username").value.trim(),
+          label: document.getElementById("account-label").value.trim(),
+          password: document.getElementById("account-password").value,
+          song_only: document.getElementById("account-song-only").checked,
+          active: document.getElementById("account-active").checked
+        });
+        renderModeratorAccounts(data.accounts || [], true);
+        document.getElementById("account-username").value = "";
+        document.getElementById("account-label").value = "";
+        document.getElementById("account-password").value = "";
+        document.getElementById("account-song-only").checked = false;
+        document.getElementById("account-active").checked = true;
+        document.getElementById("account-save").dataset.id = "";
+        document.getElementById("account-save").textContent = "Add moderator";
+      }
+
       let requestSettingsDirty = false;
       let requestSettingsSaving = false;
       
@@ -1636,29 +1774,61 @@
       
       function renderCurrentSong(song) {
         const container = document.getElementById("current-song-card");
+      
         if (!song) {
-          container.innerHTML = '<div class="song-title">Nothing is currently playing.</div>';
+          container.innerHTML =
+            '<div class="song-title">Nothing is currently playing.</div>';
           return;
         }
-
-        const requesterIp = song.requesterIp ? escapeHtml(song.requesterIp) : "Unknown";
+      
+        const requesterIp = song.requesterIp
+          ? escapeHtml(song.requesterIp)
+          : "Unknown";
+      
         const banDisabled = song.requesterIp ? "" : " disabled";
-
+      
+        const cover = song.artworkUrl
+          ? '<img class="current-song-cover" src="' +
+            escapeHtml(song.artworkUrl) +
+            '" alt="">'
+          : '<div class="current-song-cover" aria-hidden="true"></div>';
+      
         container.innerHTML = [
-          '<div class="song-title">' + escapeHtml(song.title || song.displayName || "Untitled") + '</div>',
-          '<div class="song-meta">',
-            '<div class="meta-row">',
-              '<span class="token">Artist: ' + escapeHtml(song.artist || "Unknown") + '</span>',
-              '<span class="token">Votes: ' + escapeHtml(song.votes) + '</span>',
-              '<span class="token">Length: ' + escapeHtml(song.durationFormatted || "—") + '</span>',
+          '<div class="current-song-layout">',
+            cover,
+            '<div class="song-meta">',
+              '<a class="song-title" href="' +
+                escapeHtml(song.externalUrl || "#") +
+                '" target="_blank" rel="noopener noreferrer">' +
+                escapeHtml(song.title || song.displayName || "Untitled") +
+              '</a>',
+              '<div class="meta-row">',
+                '<span class="token">Artist: ' +
+                  escapeHtml(song.artist || "Unknown") +
+                '</span>',
+                '<span class="token">Votes: ' +
+                  escapeHtml(song.votes) +
+                '</span>',
+                '<span class="token">Length: ' +
+                  escapeHtml(song.durationFormatted || "—") +
+                '</span>',
+              '</div>',
+              '<div class="meta-row">',
+                '<span class="token">Requester IP: ' +
+                  requesterIp +
+                '</span>',
+              '</div>',
             '</div>',
-            '<div class="meta-row">',
-              '<span class="token">Requester IP: ' + requesterIp + '</span>',
+            '<div class="current-song-actions">',
+              '<button class="warn" type="button" data-action="skip-current">' +
+                'Skip current song' +
+              '</button>',
+              '<button class="warn" type="button" data-action="ban-current" ' +
+                'data-ip="' + escapeHtml(song.requesterIp || "") + '"' +
+                banDisabled + '>' +
+                'Ban requester' +
+              '</button>',
             '</div>',
-          '</div>',
-          '<div class="queue-actions">',
-            '<button class="warn" type="button" data-action="skip-current">Skip current song</button>',
-            '<button class="warn" type="button" data-action="ban-current" data-ip="' + escapeHtml(song.requesterIp || "") + '"' + banDisabled + '>Ban requester</button>',
           '</div>'
         ].join("");
       }
@@ -1675,12 +1845,14 @@
         list.innerHTML = queue.map(function (song, index) {
           const requesterIp = song.requesterIp ? escapeHtml(song.requesterIp) : "Unknown";
           const banDisabled = song.requesterIp ? "" : " disabled";
+          const cover = song.artworkUrl ? '<img class="moderator-cover" src="' + escapeHtml(song.artworkUrl) + '" alt="">' : '';
           return [
             '<article class="queue-item">',
               '<div class="queue-copy">',
                 '<div class="queue-title-row">',
+                  cover,
                   '<span class="token">#' + (index + 1) + '</span>',
-                  '<div class="queue-title">' + escapeHtml(song.title || song.displayName || "Untitled") + '</div>',
+                  '<a class="queue-title" href="' + escapeHtml(song.externalUrl || "#") + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(song.title || song.displayName || "Untitled") + '</a>',
                 '</div>',
                 '<div class="queue-artist">' + escapeHtml(song.artist || "Unknown") + '</div>',
                 '<div class="meta-row">',
@@ -1690,11 +1862,58 @@
                 '</div>',
               '</div>',
               '<div class="queue-actions">',
-                '<button class="warn" type="button" data-action="remove-song" data-key="' + escapeHtml(song.queueKey) + '">Remove</button>',
-                '<button class="button subtle" type="button" data-action="ban-song-ip" data-key="' + escapeHtml(song.queueKey) + '" data-ip="' + escapeHtml(song.requesterIp || "") + '"' + banDisabled + '>Ban requester</button>',
+                '<button class="warn" type="button" data-action="remove-song" data-key="' +
+                  escapeHtml(song.queueKey) + '">Remove</button>',
+                '<button class="button subtle" type="button" data-action="view-details" data-key="' +
+                  escapeHtml(song.queueKey) + '">Lyrics & details</button>',
+                '<button class="button subtle" type="button" data-action="ban-song-ip" data-key="' +
+                  escapeHtml(song.queueKey) + '">Ban requester</button>',
               '</div>',
             '</article>'
           ].join("");
+        }).join("");
+      }
+
+      let lastHeldKeys = new Set();
+      let alertAudioContext = null;
+      function playReviewDing() {
+        if (!alertAudioContext) return;
+        const oscillator = alertAudioContext.createOscillator();
+        const gain = alertAudioContext.createGain();
+        oscillator.frequency.value = 880;
+        gain.gain.setValueAtTime(.22, alertAudioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(.001, alertAudioContext.currentTime + .45);
+        oscillator.connect(gain); gain.connect(alertAudioContext.destination);
+        oscillator.start(); oscillator.stop(alertAudioContext.currentTime + .45);
+      }
+      function highlightedLyrics(song) {
+        let value = escapeHtml(song.lyrics || "Lyrics unavailable");
+        const terms = song.matchedTerms || {};
+        (terms.profanity || []).forEach(function (term) { value = value.replace(new RegExp("\\b(" + String(term).replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&") + ")\\b", "gi"), '<mark class="lyric-profanity">$1</mark>'); });
+        (terms.slurs || []).forEach(function (term) { value = value.replace(new RegExp("\\b(" + String(term).replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&") + ")\\b", "gi"), '<mark class="lyric-slur">$1</mark>'); });
+        return value.replace(/\n/g, "<br>");
+      }
+      function renderReview(queue) {
+        const held = queue.filter(function (song) { return song.reviewStatus === "pending"; });
+        const section = document.getElementById("review-section");
+        section.hidden = !held.length;
+        document.getElementById("review-count").textContent = String(held.length);
+        const nextKeys = new Set(held.map(function (song) { return String(song.queueKey); }));
+        if (held.some(function (song) { return !lastHeldKeys.has(String(song.queueKey)); })) {
+          playReviewDing();
+        }
+        lastHeldKeys = nextKeys;
+        document.getElementById("review-list").innerHTML = held.map(function (song) {
+          return '<article class="queue-item"><div class="queue-copy"><div class="queue-title">❗ ' + escapeHtml(song.displayName) + '</div><div class="queue-artist">' + escapeHtml(song.reviewReason) + ' · ' + escapeHtml(song.profanityCount) + ' profanity · ' + escapeHtml(song.slurCount) + ' slurs</div></div><div class="queue-actions"><button data-action="view-details" data-key="' + escapeHtml(song.queueKey) + '">Lyrics & details</button><button class="good" data-action="approve-song" data-key="' + escapeHtml(song.queueKey) + '">Approve</button><button class="warn" data-action="deny-song" data-key="' + escapeHtml(song.queueKey) + '">Deny</button></div></article>';
+        }).join("");
+      }
+
+      function renderModeratorAccounts(accounts, isAdmin) {
+        const section = document.getElementById("moderator-accounts-section");
+        section.hidden = !isAdmin;
+        if (!isAdmin) return;
+        document.getElementById("moderator-accounts-list").innerHTML = accounts.map(function (account) {
+          return '<article class="queue-item"><div class="queue-copy"><div class="queue-title">' + escapeHtml(account.label) + '</div><div class="queue-artist">@' + escapeHtml(account.username) + ' · ' + (account.songOnly ? 'song-only' : 'full moderator') + ' · ' + (account.active ? 'active' : 'inactive') + '</div></div>' + (account.admin ? '' : '<div class="queue-actions"><button data-action="edit-account" data-account="' + encodeURIComponent(JSON.stringify(account)) + '">Edit</button><button class="warn" data-action="delete-account" data-key="' + account.id + '">Delete</button></div>') + '</article>';
         }).join("");
       }
 
@@ -1720,6 +1939,7 @@
       }
 
       function renderState(data) {
+        document.body.classList.toggle("song-only", Boolean(data.songOnly));
         const queue = Array.isArray(data.queue) ? data.queue : [];
         const bannedIps = Array.isArray(data.bannedIps) ? data.bannedIps : [];
         const whitelistedIps = Array.isArray(data.whitelistedIps) ? data.whitelistedIps : [];
@@ -1731,6 +1951,8 @@
         renderRequestSettings(data.requestSettings || null);
         renderCurrentSong(data.currentSong || null);
         renderQueue(queue);
+        renderReview(queue);
+        renderModeratorAccounts(Array.isArray(data.moderatorAccounts) ? data.moderatorAccounts : [], Boolean(data.isAdmin));
         renderConnectedIps(auditLog, bannedIps, whitelistedIps, protectedModeratorIps);
         renderBanList(bannedIps);
         renderWhitelistList(whitelistedIps);
@@ -1885,6 +2107,28 @@
               button.getAttribute("data-id"),
               button.getAttribute("data-name")
             );
+          } else if (action === "hold-song") {
+            await reviewSong(button.getAttribute("data-key"), "hold");
+          } else if (action === "view-details") {
+            await showSongDetails(button.getAttribute("data-key"));
+          } else if (action === "approve-song") {
+            await reviewSong(button.getAttribute("data-key"), "approve");
+          } else if (action === "deny-song") {
+            await reviewSong(button.getAttribute("data-key"), "deny");
+          } else if (action === "edit-account") {
+            const account = JSON.parse(decodeURIComponent(button.getAttribute("data-account")));
+            document.getElementById("account-username").value = account.username;
+            document.getElementById("account-label").value = account.label;
+            document.getElementById("account-password").value = "";
+            document.getElementById("account-song-only").checked = account.songOnly;
+            document.getElementById("account-active").checked = account.active;
+            document.getElementById("account-save").dataset.id = account.id;
+            document.getElementById("account-save").textContent = "Save moderator";
+          } else if (action === "delete-account") {
+            if (window.confirm("Delete this moderator account?")) {
+              const data = await postForm(MODERATOR_ACCOUNT_DELETE_URL, {id: button.getAttribute("data-key")});
+              renderModeratorAccounts(data.accounts || [], true);
+            }
           }
         } catch (error) {
           handleModeratorRequestError(error, "Action failed.");
@@ -1898,6 +2142,20 @@
           handleModeratorRequestError(error, "Unable to switch mode.");
         });
       });
+      document.getElementById("enable-alerts-button").addEventListener("click", function () {
+        alertAudioContext =
+          alertAudioContext ||
+          new (window.AudioContext || window.webkitAudioContext)();
+      
+        alertAudioContext.resume();
+        this.textContent = "Moderation alerts enabled";
+        this.classList.remove("needs-attention");
+        playReviewDing();
+      });
+      
+      document
+        .getElementById("enable-alerts-button")
+        .classList.add("needs-attention");
       
       document.getElementById("closing-mode-button").addEventListener("click", function () {
         setMode("closing").catch(function (error) {
@@ -1955,6 +2213,27 @@
           event.preventDefault();
           document.getElementById("manual-whitelist-button").click();
         }
+      });
+
+      async function updateIdentitySuggestions(value) {
+        const response = await fetch(MODERATOR_IDENTITY_SEARCH_URL + "?q=" + encodeURIComponent(value), {credentials: "same-origin"});
+        if (!response.ok) return;
+        const data = await response.json();
+        document.getElementById("codename-suggestions").innerHTML = (data.results || []).map(function (item) { return '<option value="' + escapeHtml(item.codename) + '">' + escapeHtml(item.ip) + '</option>'; }).join("");
+      }
+      document.getElementById("manual-whitelist-input").addEventListener("input", function () { updateIdentitySuggestions(this.value); });
+      document.getElementById("history-search-input").addEventListener("input", function () { updateIdentitySuggestions(this.value); });
+      document.getElementById("history-search-button").addEventListener("click", async function () {
+        const q = document.getElementById("history-search-input").value.trim();
+        const response = await fetch(MODERATOR_AUDIT_SEARCH_URL + "?q=" + encodeURIComponent(q), {credentials: "same-origin"});
+        const data = await parseModeratorJsonResponse(response);
+        renderAuditLog(data.results || [], []);
+      });
+      document.getElementById("account-save").addEventListener("click", function () {
+        saveAccount(this.dataset.id || "").catch(function (error) { handleModeratorRequestError(error, "Unable to save moderator."); });
+      });
+      document.getElementById("song-details-close").addEventListener("click", function () {
+        document.getElementById("song-details-dialog").close();
       });
       
       document.getElementById("add-blocklist-button").addEventListener("click", function () {

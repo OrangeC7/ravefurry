@@ -584,6 +584,7 @@ if errorlevel 1 (
 )
 
 python -m pip install --force-reinstall "raveberry[run] @ git+%DEFAULT_RAVEBERRY_REPO%@%DEFAULT_RAVEBERRY_REF%"
+python -m pip install --upgrade yt-dlp
 if errorlevel 1 (
     call :die "Failed to install raveberry from the GitHub repository."
     exit /b 1

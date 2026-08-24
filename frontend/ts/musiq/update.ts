@@ -107,6 +107,10 @@ export function updateState(newState) {
     $('#current-song').removeClass('present own-song-current');
     $('#current-song').addClass('empty');
     $('#current-song').removeAttr('data-queue-key');
+    $('#current-song-artwork')
+        .removeAttr('src')
+        .attr('hidden', 'hidden')
+        .hide();
 
     $('#song-votes .vote-down').removeClass('pressed');
     $('#song-votes .vote-up').removeClass('pressed');
@@ -133,6 +137,18 @@ export function updateState(newState) {
 
     $('#current-song').removeClass('empty').addClass('present');
     $('#current-song').attr('data-queue-key', String(currentSong.queueKey));
+    
+    if (currentSong.artworkUrl) {
+      $('#current-song-artwork')
+          .attr('src', currentSong.artworkUrl)
+          .removeAttr('hidden')
+          .show();
+    } else {
+      $('#current-song-artwork')
+          .removeAttr('src')
+          .attr('hidden', 'hidden')
+          .hide();
+    }
 
     const previousVote = getStoredVote(currentSong.queueKey);
     if (previousVote == '+') {
@@ -346,8 +362,16 @@ function createQueueItem() {
       .addClass('queue-info-time')
       .appendTo(entryDiv);
 
-  $('<div/>')
+  $('<img/>')
+      .addClass('queue-artwork')
+      .attr('alt', '')
+      .hide()
+      .appendTo(entryDiv);
+
+  $('<a/>')
       .addClass('queue-title')
+      .attr('target', '_blank')
+      .attr('rel', 'noopener noreferrer')
       .appendTo(entryDiv);
 
   const info = $('<div/>')
@@ -444,6 +468,27 @@ function updateInformation(entry, song) {
 
   const title = entry.find('.queue-title');
   insertDisplayName(title, song);
+  title.attr('href', song.externalUrl || '#').attr('title', 'Open song in a new tab');
+  row.toggleClass('has-artwork', Boolean(song.artworkUrl));
+  if (song.artworkUrl) {
+    entry.find('.queue-artwork').attr('src', song.artworkUrl).show();
+  } else {
+    entry.find('.queue-artwork').removeAttr('src').hide();
+  }
+  entry.toggleClass('queue-review-pending', song.reviewStatus === 'pending');
+  if (song.reviewStatus === 'pending') {
+    title.attr('title', "This song won't play until it has been checked by a moderator due to possibly breaking the event rules.");
+    if (!entry.find('.queue-review-warning').length) {
+      $('<span/>')
+          .addClass('queue-review-warning')
+          .attr('role', 'img')
+          .attr('aria-label', 'Moderator review required')
+          .text('!')
+          .appendTo(entry.find('.queue-info-controls'));
+    }
+  } else {
+    entry.find('.queue-review-warning').remove();
+  }
 
   const time = entry.find('.queue-info-time');
   time.text(song.durationFormatted);

@@ -27,6 +27,50 @@ class SongQueue(models.Manager):
     Handles all operations on the queue."""
 
     @transaction.atomic
+    def rebalance_priorities(self) -> None:
+        """Keep normal songs first and fairly round-robin overflow by requester."""
+        # Every enqueue may rewrite overflow positions. Lock queue rows in one
+        # deterministic order to prevent cross-user submissions deadlocking.
+        list(self.select_for_update().order_by("id").values_list("id", flat=True))
+        normal = list(self.filter(priority_tier="normal").order_by("index"))
+        grouped = {}
+        for song in self.filter(priority_tier="extra").order_by("id"):
+            grouped.setdefault(song.requester_token or f"song:{song.id}", []).append(song)
+        requester_order = list(grouped)
+        random.shuffle(requester_order)
+        extra = []
+        while requester_order:
+            next_round = []
+            for requester in requester_order:
+                extra.append(grouped[requester].pop(0))
+                if grouped[requester]:
+                    next_round.append(requester)
+            requester_order = next_round
+        for index, song in enumerate(normal + extra, start=1):
+            if song.index != index:
+                self.filter(id=song.id).update(index=index)
+        _snapshot_after_commit()
+
+    @transaction.atomic
+    def promote_oldest_extra(self, requester_token: str) -> None:
+        """Promote this requester's oldest overflow song, if one exists."""
+        if not requester_token or self.filter(
+            requester_token=requester_token,
+            priority_tier="normal",
+        ).exists() or core.models.CurrentSong.objects.filter(
+            requester_token=requester_token,
+        ).exists():
+            return
+        overflow = self.filter(
+            requester_token=requester_token,
+            priority_tier="extra",
+        ).order_by("id").first()
+        if overflow:
+            overflow.priority_tier = "normal"
+            overflow.save(update_fields=["priority_tier"])
+            self.rebalance_priorities()
+
+    @transaction.atomic
     def confirmed(self) -> QuerySet[QueuedSong]:
         """Returns a QuerySet containing all confirmed songs.
         Confirmed songs are not in the process of being made available."""
@@ -75,14 +119,15 @@ class SongQueue(models.Manager):
         from core import user_manager
         from core.musiq import next_up
 
+        eligible = self.confirmed().filter(review_status__in=["clear", "approved"])
         locked_key = next_up.get_locked_queue_key()
         if locked_key is not None:
-            song = self.confirmed().filter(id=locked_key).first()
+            song = eligible.filter(id=locked_key).first()
             if song is None:
                 next_up.clear_locked_queue_key()
-                song = self.confirmed().first()
+                song = eligible.filter(priority_tier="normal").first() or eligible.first()
         else:
-            song = self.confirmed().first()
+            song = eligible.filter(priority_tier="normal").first() or eligible.first()
 
         if song is None:
             return -1, None
@@ -92,6 +137,7 @@ class SongQueue(models.Manager):
         next_up.clear_if_locked(song_id)
         song.delete()
         self.filter(index__gt=song.index).update(index=F("index") - 1)
+        self.rebalance_priorities()
         return song_id, song
 
     @transaction.atomic
@@ -133,10 +179,14 @@ class SongQueue(models.Manager):
         from core.musiq import next_up
 
         to_remove = self.get(id=key)
+        requester_token = to_remove.requester_token
+        was_normal = to_remove.priority_tier == "normal"
         user_manager.release_queue_slot_for_song(key)
         next_up.clear_if_locked(key)
         to_remove.delete()
         self.filter(index__gt=to_remove.index).update(index=F("index") - 1)
+        if was_normal:
+            self.promote_oldest_extra(requester_token)
         if snapshot:
             _snapshot_after_commit()
         return to_remove

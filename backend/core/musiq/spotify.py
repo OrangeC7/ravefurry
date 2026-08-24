@@ -188,6 +188,16 @@ class SpotifySongProvider(SongProvider, Spotify):
             self.metadata["external_url"] = result["external_urls"]["spotify"]
             self.metadata["stream_url"] = None
             self.metadata["cached"] = False
+            images = result.get("album", {}).get("images", [])
+            self.metadata["artwork_url"] = images[0].get("url", "") if images else ""
+            genres = []
+            artist_id = result.get("artists", [{}])[0].get("id")
+            if artist_id:
+                try:
+                    genres = self.api.artist(artist_id).get("genres", [])
+                except Exception:  # metadata enrichment must not reject the song
+                    genres = []
+            self.metadata["genre"] = genres[0] if genres else ""
         except KeyError:
             self.error = "No song found"
             return False

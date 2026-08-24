@@ -2,6 +2,7 @@
 from typing import TYPE_CHECKING
 
 from django.db import connection, models
+from django.conf import settings
 from django.db.models import QuerySet
 
 from core.musiq import song_queue, song_utils
@@ -167,6 +168,15 @@ class QueuedSong(models.Model):
     duration = models.FloatField()
     requester_ip = models.CharField(max_length=45, blank=True, default="")
     requester_session_key = models.CharField(max_length=50, blank=True, default="")
+    requester_token = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    priority_tier = models.CharField(max_length=16, default="normal", db_index=True)
+    review_status = models.CharField(max_length=16, default="clear", db_index=True)
+    review_reason = models.CharField(max_length=500, blank=True, default="")
+    lyrics = models.TextField(blank=True, default="")
+    profanity_count = models.PositiveIntegerField(default=0)
+    slur_count = models.PositiveIntegerField(default=0)
+    artwork_url = models.CharField(max_length=2000, blank=True, default="")
+    genre = models.CharField(max_length=250, blank=True, default="")
     objects = song_queue.SongQueue()
 
     def __str__(self) -> str:
@@ -194,6 +204,9 @@ class CurrentSong(models.Model):
     stream_url = models.CharField(max_length=2000, blank=True, null=True)
     requester_ip = models.CharField(max_length=45, blank=True, default="")
     requester_session_key = models.CharField(max_length=50, blank=True, default="")
+    requester_token = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    artwork_url = models.CharField(max_length=2000, blank=True, default="")
+    genre = models.CharField(max_length=250, blank=True, default="")
     created = models.DateTimeField(auto_now_add=True)
     last_paused = models.DateTimeField(auto_now_add=True)
 
@@ -255,6 +268,13 @@ class PlayLog(models.Model):
         )
 
 
+class RecentPlay(models.Model):
+    """Minimal rolling history used by mandatory FURATIC replay limits."""
+
+    created = models.DateTimeField(auto_now_add=True, db_index=True)
+    song_url = models.CharField(max_length=2000, db_index=True)
+
+
 class Setting(models.Model):
     """key value storage for persistent settings."""
 
@@ -263,3 +283,47 @@ class Setting(models.Model):
 
     def __str__(self) -> str:
         return self.key + ": " + ("None" if self.value is None else self.value)
+
+
+class ModeratorProfile(models.Model):
+    """FURATIC-specific moderator label and queue-only permission."""
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    label = models.CharField(max_length=120)
+    song_only = models.BooleanField(default=False)
+
+    def __str__(self) -> str:
+        return self.label
+
+
+class ClientIdentity(models.Model):
+    """Stable, random browser identity used for codenames across IP changes."""
+
+    token_hash = models.CharField(max_length=64, unique=True)
+    codename = models.CharField(max_length=40, unique=True, db_index=True)
+    first_ip = models.CharField(max_length=45, blank=True, default="")
+    last_ip = models.CharField(max_length=45, blank=True, default="")
+    created = models.DateTimeField(auto_now_add=True)
+    last_seen = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return self.codename
+
+
+class AuditEntry(models.Model):
+    """Searchable event-sized moderator audit history."""
+
+    created = models.DateTimeField(auto_now_add=True, db_index=True)
+    action = models.CharField(max_length=120, db_index=True)
+    actor = models.CharField(max_length=150, blank=True, default="")
+    actor_role = models.CharField(max_length=20, blank=True, default="")
+    ip = models.CharField(max_length=45, blank=True, default="", db_index=True)
+    codename = models.CharField(max_length=40, blank=True, default="", db_index=True)
+    browser_token = models.CharField(max_length=16, blank=True, default="")
+    target = models.CharField(max_length=500, blank=True, default="")
+    song_key = models.IntegerField(blank=True, null=True)
+    song_title = models.CharField(max_length=2000, blank=True, default="")
+    metadata = models.JSONField(default=dict)
+
+    class Meta:
+        ordering = ["-created"]

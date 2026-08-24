@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
 from django.conf import settings as conf
 from django.core.handlers.wsgi import WSGIRequest
 from django.forms.models import model_to_dict
+from django.db import transaction
 from django.db.models import Case, F, IntegerField, Value, When
 from django.http import HttpResponseBadRequest
 from django.http.response import HttpResponse, JsonResponse
@@ -38,7 +39,7 @@ def ordered_queue_queryset():
     Votes < 1 are all treated equally for ordering.
     The locked next-up song always remains first while the current song is active.
     """
-    all_songs = queue.all()
+    all_songs = queue.all().annotate(queue_rank=Case(When(review_status="pending", then=Value(2)), When(priority_tier="extra", then=Value(1)), default=Value(0), output_field=IntegerField()))
     voting_enabled = storage.get("interactivity") in [
         storage.Interactivity.upvotes_only,
         storage.Interactivity.full_voting,
@@ -51,12 +52,14 @@ def ordered_queue_queryset():
                 default=Value(1),
                 output_field=IntegerField(),
             )
-        ).order_by("-effective_votes", "index")
+        ).order_by("queue_rank", "-effective_votes", "index")
     else:
-        natural_order = all_songs.order_by("index")
+        natural_order = all_songs.order_by("queue_rank", "index")
 
     locked_key = next_up.resolve_locked_queue_key(
-        natural_order.exclude(internal_url=None).values_list("id", flat=True),
+        natural_order.filter(
+            review_status__in=["clear", "approved"],
+        ).exclude(internal_url=None).values_list("id", flat=True),
         allow_new_lock=CurrentSong.objects.exists(),
     )
 
@@ -75,9 +78,9 @@ def ordered_queue_queryset():
                     default=Value(1),
                     output_field=IntegerField(),
                 )
-            ).order_by("next_up_locked", "-effective_votes", "index")
+            ).order_by("next_up_locked", "queue_rank", "-effective_votes", "index")
         else:
-            ordered = ordered.order_by("-effective_votes", "index")
+            ordered = ordered.order_by("queue_rank", "-effective_votes", "index")
         return ordered
 
     if locked_key is not None:
@@ -87,9 +90,9 @@ def ordered_queue_queryset():
                 default=Value(1),
                 output_field=IntegerField(),
             )
-        ).order_by("next_up_locked", "index")
+        ).order_by("next_up_locked", "queue_rank", "index")
 
-    return all_songs.order_by("index")
+    return all_songs.order_by("queue_rank", "index")
 
 if TYPE_CHECKING:
     from core.musiq.song_utils import Metadata
@@ -179,6 +182,7 @@ def try_providers(
     session_key: str,
     providers: List[MusicProvider],
     requester_ip: str = "",
+    defer_enqueue: bool = False,
 ) -> MusicProvider:
     """Goes through every given provider and tries to request its music.
     Returns the first provider that was successful with an empty error.
@@ -190,7 +194,11 @@ def try_providers(
 
     for provider in providers:
         try:
-            provider.request(session_key, requester_ip=requester_ip)
+            provider.request(
+                session_key,
+                requester_ip=requester_ip,
+                defer_enqueue=defer_enqueue,
+            )
             # the current provider could provide the song, don't try the other ones
             break
         except ProviderError:
@@ -270,6 +278,8 @@ def request_music(request: WSGIRequest) -> HttpResponse:
 
     requester_ip = user_manager.get_client_ip(request)
     session_key = user_manager.normalize_session_key(request.session.session_key or "")
+    identity = user_manager.client_identity(request)
+    requester_token = identity.token_hash
 
     cooldown_remaining = user_manager.request_cooldown_remaining(
         requester_ip,
@@ -282,15 +292,10 @@ def request_music(request: WSGIRequest) -> HttpResponse:
             "before adding another song."
         )
 
-    if storage.get("ip_checking"):
-        if playlist:
-            return HttpResponseBadRequest(
-                "Playlist requests are disabled while IP-based anti-spam is enabled."
-            )
-        if user_manager.ip_has_active_queue_slot(requester_ip):
-            return HttpResponseBadRequest(
-                "This IP address already has a song in the queue."
-            )
+    if playlist and storage.get("ip_checking"):
+        return HttpResponseBadRequest(
+            "Playlist requests are disabled while IP-based anti-spam is enabled."
+        )
 
     key = None
     if key_param:
@@ -301,54 +306,87 @@ def request_music(request: WSGIRequest) -> HttpResponse:
     except ProviderError as error:
         return HttpResponseBadRequest(str(error))
 
+    if playlist:
+        provider = try_providers(
+            session_key,
+            providers,
+            requester_ip=requester_ip,
+        )
+        if provider.error:
+            return HttpResponseBadRequest(provider.error)
+        user_manager.remember_request_cooldown(requester_ip, session_key)
+        return JsonResponse({"message": provider.ok_message, "key": None})
+
     provider = try_providers(
         session_key,
         providers,
         requester_ip=requester_ip,
+        defer_enqueue=True,
     )
     if provider.error:
         return HttpResponseBadRequest(provider.error)
 
-    queue_key = None
-    if not playlist:
+    assert isinstance(provider, SongProvider)
+    queued_song = provider.queued_song
+    if not queued_song:
+        logging.error(
+            "no placeholder was created for query '%s' and key '%s'", query, key
+        )
+        return HttpResponseBadRequest("No placeholder was created")
+
+    with transaction.atomic():
+        # Serialize ownership assignment after placeholder creation; worker
+        # threads must never be asked to use an uncommitted queue row.
+        from core.models import ClientIdentity  # pylint: disable=import-outside-toplevel
+
+        ClientIdentity.objects.select_for_update().get(pk=identity.pk)
+        active_count = (
+            queue.filter(requester_token=requester_token).count()
+            + CurrentSong.objects.filter(requester_token=requester_token).count()
+        )
+        if active_count >= 5:
+            try:
+                playback.queue.remove(queued_song.id)
+            except QueuedSong.DoesNotExist:
+                pass
+            return HttpResponseBadRequest("You may have up to 5 active songs at once.")
         assert isinstance(provider, SongProvider)
-        queued_song = provider.queued_song
-        if not queued_song:
-            logging.error(
-                "no placeholder was created for query '%s' and key '%s'", query, key
-            )
-            return HttpResponseBadRequest("No placeholder was created")
         queue_key = queued_song.id
-        user_manager.remember_requester_ip(
-            requester_ip,
-            queue_key,
-            session_key=session_key,
+        has_primary = (
+            queue.filter(
+                requester_token=requester_token,
+                priority_tier="normal",
+            ).exclude(id=queue_key).exists()
+            or CurrentSong.objects.filter(requester_token=requester_token).exists()
         )
-
-        if storage.get("ip_checking"):
-            assert queue_key
-            if not user_manager.claim_queue_slot(requester_ip, queue_key):
-                try:
-                    playback.queue.remove(queue_key)
-                except Exception:  # pylint: disable=broad-except
-                    queue.filter(id=queue_key).delete()
-                return HttpResponseBadRequest(
-                    "This IP address already has a song in the queue."
-                )
-            user_manager.try_vote(requester_ip, queue_key, 1, record_activity=False)
-
-        if storage.get("color_indication") != storage.Privileges.nobody:
-            user_manager.register_song(request, queue_key)
-            user_manager.register_vote(request, queue_key, 1)
-
-        audit_log.append(
-            "user_add_song",
-            request=request,
-            target="queue",
-            song_key=queue_key,
-            song_title=queued_song.displayname(),
+        queue.filter(id=queue_key).update(
+            requester_token=requester_token,
+            priority_tier="extra" if has_primary else "normal",
         )
-        update_state()
+        queue.rebalance_priorities()
+
+    user_manager.remember_requester_ip(
+        requester_ip,
+        queue_key,
+        session_key=session_key,
+    )
+
+    if storage.get("ip_checking"):
+        user_manager.try_vote(requester_ip, queue_key, 1, record_activity=False)
+
+    if storage.get("color_indication") != storage.Privileges.nobody:
+        user_manager.register_song(request, queue_key)
+        user_manager.register_vote(request, queue_key, 1)
+
+    audit_log.append(
+        "user_add_song",
+        request=request,
+        target="queue",
+        song_key=queue_key,
+        song_title=queued_song.displayname(),
+    )
+    update_state()
+    provider.start_deferred_enqueue()
 
     user_manager.remember_request_cooldown(requester_ip, session_key)
 

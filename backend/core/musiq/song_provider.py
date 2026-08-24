@@ -15,6 +15,7 @@ from core.models import (
     RequestLog,
     CurrentSong,
     PlayLog,
+    RecentPlay,
 )
 from core.musiq import audio_tail, musiq, playback, song_utils
 from core.musiq.music_provider import MusicProvider, WrongUrlError, ProviderError
@@ -322,6 +323,18 @@ class SongProvider(MusicProvider):
             .order_by("-created")
             .first()
         )
+        recent_hour = RecentPlay.objects.filter(
+            song_url=self.get_external_url(), created__gte=timezone.now() - datetime.timedelta(hours=1)
+        ).count()
+        recent_day = RecentPlay.objects.filter(
+            song_url=self.get_external_url(), created__gte=timezone.now() - datetime.timedelta(hours=24)
+        ).count()
+        if recent_hour >= 1:
+            self.error = "This song was played in the last hour and can be queued again once one hour has passed."
+            return True
+        if recent_day >= 2:
+            self.error = "This song has already played twice in the last 24 hours and cannot be queued again yet."
+            return True
         cooldown = datetime.timedelta(hours=storage.get("song_cooldown"))
         if latest_log is not None and timezone.now() - latest_log.created < cooldown:
             self.error = "Song was played recently"
@@ -406,6 +419,14 @@ class SongProvider(MusicProvider):
         self.queued_song.internal_url = metadata["internal_url"]
         self.queued_song.external_url = metadata["external_url"]
         self.queued_song.stream_url = metadata["stream_url"]
+        self.queued_song.artwork_url = metadata.get("artwork_url", "")
+        self.queued_song.genre = metadata.get("genre", "")
+        current_review_status = playback.queue.filter(
+            id=self.queued_song.id,
+        ).values_list("review_status", flat=True).first()
+        self.queued_song.review_status = (
+            "pending" if current_review_status == "pending" else "analyzing"
+        )
         # make sure not to overwrite the index as it may have changed in the meantime
         self.queued_song.save(
             update_fields=[
@@ -415,8 +436,20 @@ class SongProvider(MusicProvider):
                 "internal_url",
                 "external_url",
                 "stream_url",
+                "artwork_url",
+                "genre",
+                "review_status",
             ]
         )
+        from core import audit_log
+
+        audit_log.update_song_title(
+            self.queued_song.id,
+            self.queued_song.displayname(),
+        )
+        from core.song_analysis import analyze_song
+
+        analyze_song.delay(self.queued_song.id)
 
         musiq.update_state()
         playback.queue_changed.set()

@@ -43,10 +43,20 @@ MIN_RECENT_UPVOTE_TRANSITIONS = 4
 
 SELF_REMOVE_WINDOW_SECONDS = 10 * 60
 SELF_REMOVE_TTL_SECONDS = SELF_REMOVE_WINDOW_SECONDS + 60
-MAX_SELF_REMOVE_ACTIONS = 3
+MAX_SELF_REMOVE_ACTIONS = 5
 
 BUILTIN_CREDENTIALS_PATH = Path(conf.BASE_DIR) / "config" / "builtin_credentials.json"
 BUILTIN_PASSWORD_BYTES = 20
+CLIENT_TOKEN_COOKIE = "furatic_browser"
+CODENAME_WORDS = (
+    "EMBER", "NOVA", "COMET", "QUARTZ", "ORBIT", "RIVER", "CINDER", "AURORA",
+    "ECHO", "SOLAR", "FABLE", "GLINT", "ASTRA", "LYRIC", "POLAR", "VELVET",
+    "MAPLE", "CLOUD", "PIXEL", "HARBOR", "TOPAZ", "MINT", "THUNDER", "SATIN",
+    "ROCKET", "BLOSSOM", "ONYX", "LAGOON", "SPARROW", "CANYON", "JETSTREAM",
+    "MERIDIAN", "CLOVE", "CASCADE", "SUMMIT", "TANGO", "MIRAGE", "DUSK", "PRISM",
+    "CYPRESS", "NEBULA", "RADIANT", "FROST", "SAFFRON", "DRIFT", "TEMPEST",
+    "WILLOW", "EMBERGLOW",
+)
 
 
 def _load_builtin_credentials() -> dict:
@@ -214,6 +224,75 @@ def is_moderator(user) -> bool:
 def can_moderate(user) -> bool:
     """Determines whether the given user can access moderator tools."""
     return is_admin(user) or is_moderator(user)
+
+
+def is_song_only_moderator(user) -> bool:
+    if is_admin(user) or not is_moderator(user):
+        return False
+    try:
+        return bool(user.moderatorprofile.song_only)
+    except Exception:  # profile-less legacy moderators retain full access
+        return False
+
+
+def full_moderator_required(func):
+    """Require admin or a non-song-only moderator."""
+    @moderator_required
+    def wrapped(request, *args, **kwargs):
+        if is_song_only_moderator(request.user):
+            return JsonResponse({"message": "Full moderator access is required."}, status=403)
+        return func(request, *args, **kwargs)
+    return wraps(func)(wrapped)
+
+
+def admin_required(func):
+    """Require the administrator account."""
+    @moderator_required
+    def wrapped(request, *args, **kwargs):
+        if not is_admin(request.user):
+            return JsonResponse({"message": "Administrator access is required."}, status=403)
+        return func(request, *args, **kwargs)
+    return wraps(func)(wrapped)
+
+
+def client_identity(request, create: bool = True):
+    """Resolve the unique random browser cookie to its server-side codename."""
+    from core.models import ClientIdentity
+    raw = str(getattr(request, "furatic_browser_token", "") or request.COOKIES.get(CLIENT_TOKEN_COOKIE, ""))
+    if not re.fullmatch(r"[A-Za-z0-9_-]{32,128}", raw):
+        if not create:
+            return None
+        raw = secrets.token_urlsafe(32)
+        request.furatic_browser_token = raw
+        request.furatic_set_browser_cookie = True
+    else:
+        # Audit entries must use the real token belonging to this request. The
+        # previous implementation only set this attribute for brand-new users,
+        # which made every returning user's token appear blank in moderation.
+        request.furatic_browser_token = raw
+    digest = hashlib.sha256(raw.encode()).hexdigest()
+    identity = ClientIdentity.objects.filter(token_hash=digest).first()
+    ip = get_client_ip(request)
+    if identity is None and create:
+        word = CODENAME_WORDS[int(digest[:8], 16) % len(CODENAME_WORDS)]
+        base = f"{word}-{(int(digest[8:16], 16) % 97) + 1:02d}"
+        codename = base
+        suffix = 1
+        while ClientIdentity.objects.filter(codename=codename).exists():
+            suffix += 1
+            codename = f"{base}-{suffix}"
+        identity = ClientIdentity.objects.create(token_hash=digest, codename=codename, first_ip=ip, last_ip=ip)
+    elif identity:
+        now = timezone.now()
+        updates = {}
+        if ip and identity.last_ip != ip:
+            identity.last_ip = ip
+            updates["last_ip"] = ip
+        if (now - identity.last_seen).total_seconds() >= 300 or updates:
+            updates["last_seen"] = now
+            ClientIdentity.objects.filter(pk=identity.pk).update(**updates)
+    request.furatic_identity = identity
+    return identity
 
 
 def moderator_required(
@@ -1097,6 +1176,10 @@ def tracked(
                 storage.put("color_offset", random.random())
                 storage.put("next_color_index", 0)
 
+            # Signed-cookie sessions encode their contents. Saving an empty session
+            # produces the same deterministic key for every anonymous browser.
+            # Persist a random per-browser value so requester session IDs are real.
+            request.session["browser_token"] = secrets.token_urlsafe(24)
             request.session.save()
 
         request_ip = get_client_ip(request)

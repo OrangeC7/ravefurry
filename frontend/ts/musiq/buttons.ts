@@ -268,12 +268,18 @@ export function onReady() {
     disablePlaylistMode();
   });
 
-  // info popups for songs with long text
+  // Song titles are direct links as requested; keep the modal only as fallback.
   $('#song-queue').on('click tap', '.queue-title', function() {
     const index = $(this).closest('.queue-entry').parent().index();
     const url = state.songQueue[index].externalUrl;
     const duration = state.songQueue[index].durationFormatted;
-    showTitleModal($(this), duration, url);
+    if (url) {
+      // Queue titles are real anchors, so allow the browser to open exactly
+      // one tab and preserve normal middle-click / keyboard behavior.
+      return;
+    } else {
+      showTitleModal($(this), duration, url);
+    }
   });
   // close modals on click
   $('#title-modal .modal-content').on('click tap', function() {

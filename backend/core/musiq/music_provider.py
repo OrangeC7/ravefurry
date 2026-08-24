@@ -108,6 +108,7 @@ class MusicProvider:
         archive: bool = True,
         manually_requested: bool = True,
         requester_ip: str = "",
+        defer_enqueue: bool = False,
     ) -> None:
         """Tries to request this resource.
         Uses the local cache if possible, otherwise tries to retrieve it online."""
@@ -135,9 +136,14 @@ class MusicProvider:
                 self.error = "Only new music is allowed!"
                 raise ProviderError(self.error)
 
-        if storage.get("song_cooldown") != 0:
-            if self.on_cooldown():
-                raise ProviderError(self.error)
+        # FURATIC's one-hour / twice-per-day replay limits are mandatory for
+        # user submissions even when the older configurable setting is zero.
+        # Preserve the prior behavior for automatic entries when operators
+        # explicitly enable that legacy cooldown.
+        if (
+            manually_requested or storage.get("song_cooldown") != 0
+        ) and self.on_cooldown():
+            raise ProviderError(self.error)
 
         self.enqueue_placeholder(
             manually_requested,
@@ -145,6 +151,18 @@ class MusicProvider:
             requester_session_key=session_key if manually_requested else "",
         )
 
+        if defer_enqueue:
+            self._deferred_enqueue = (enqueue_function, session_key, archive)
+        else:
+            enqueue_function.delay(self, session_key, archive)
+
+    def start_deferred_enqueue(self) -> None:
+        """Start background work after caller-owned queue metadata is committed."""
+        deferred = getattr(self, "_deferred_enqueue", None)
+        if deferred is None:
+            return
+        enqueue_function, session_key, archive = deferred
+        del self._deferred_enqueue
         enqueue_function.delay(self, session_key, archive)
 
 

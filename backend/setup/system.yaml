@@ -286,7 +286,7 @@
     hour: "5"
     minute: "30"
     user: root
-    job: "/usr/bin/pip3 install -U yt-dlp"
+    job: "{{ config.install_directory }}/.venv/bin/python3 -m pip install -U yt-dlp"
 
 - name: Periodic metadata sync
   when: config.youtube is not defined or config.youtube
@@ -296,4 +296,3 @@
     minute: "0"
     user: www-data
     job: "{{ config.install_directory }}/.venv/bin/python3 {{ config.install_directory }}/manage.py syncsongmetadata"
-

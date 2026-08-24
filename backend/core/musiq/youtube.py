@@ -432,6 +432,9 @@ class YoutubeSongProvider(SongProvider, Youtube):
             metadata["title"] = title
             metadata["artist"] = artist
             metadata["duration"] = duration
+            metadata["artwork_url"] = self.info_dict.get("thumbnail") or ""
+            categories = self.info_dict.get("categories") or []
+            metadata["genre"] = self.info_dict.get("genre") or (categories[0] if categories else "")
 
         self.metadata = metadata
         return True

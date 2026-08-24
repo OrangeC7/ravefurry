@@ -148,6 +148,9 @@ class JamendoSongProvider(SongProvider, Jamendo):
         self.metadata["external_url"] = result["shareurl"]
         self.metadata["stream_url"] = result["audio"]
         self.metadata["cached"] = False
+        self.metadata["artwork_url"] = result.get("image") or result.get("album_image") or ""
+        genres = result.get("musicinfo", {}).get("tags", {}).get("genres", [])
+        self.metadata["genre"] = genres[0] if genres else ""
         return True
 
     def get_internal_url(self) -> str:
